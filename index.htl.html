@@ -1,0 +1,3468 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="UTF-8" />
+  <title>Crypto Portfolio Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <style>
+    :root { color-scheme: dark; }
+    .theme-light { color-scheme: light; }
+    html, body { max-width: 100%; overflow-x: hidden; }
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", sans-serif;
+      font-size: 15px;
+    }
+    body.theme-light {
+      background:
+        radial-gradient(circle at 12% 18%, rgba(59,130,246,0.12), transparent 32%),
+        radial-gradient(circle at 86% 14%, rgba(56,189,248,0.12), transparent 28%),
+        radial-gradient(circle at 22% 78%, rgba(14,165,233,0.1), transparent 30%),
+        radial-gradient(circle at 76% 82%, rgba(148,163,184,0.14), transparent 30%),
+        linear-gradient(135deg, rgba(241,245,249,0.9), rgba(226,232,240,0.82));
+      color: #0f172a;
+    }
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-thumb { background: rgba(148,163,184,.6); border-radius: 999px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+
+    /* Make the smallest text classes more legible without touching layout. */
+    .text-[11px] { font-size: 12.5px !important; }
+    .text-[10px] { font-size: 12px !important; }
+    .text-[9px] { font-size: 11px !important; }
+    canvas { display: block; }
+
+    .glass-surface {
+      background: linear-gradient(135deg, rgba(15,23,42,0.82), rgba(15,23,42,0.74));
+      border: 1px solid rgba(148, 163, 184, 0.15);
+      box-shadow: 0 10px 40px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.03);
+      backdrop-filter: blur(16px);
+    }
+    .theme-light .glass-surface {
+      background:
+        linear-gradient(135deg, rgba(255,255,255,0.86), rgba(226,232,240,0.78)),
+        linear-gradient(115deg, rgba(59,130,246,0.08), rgba(14,165,233,0.05));
+      border: 1px solid rgba(148,163,184,0.38);
+      box-shadow: 0 20px 48px rgba(15,23,42,0.14), inset 0 1px 0 rgba(255,255,255,0.72);
+      backdrop-filter: blur(18px) saturate(110%);
+    }
+    .gradient-border {
+      position: relative;
+      border: 1px solid transparent;
+      background-clip: padding-box;
+    }
+    .gradient-border::before {
+      content: "";
+      position: absolute;
+      inset: -1px;
+      border-radius: inherit;
+      padding: 1px;
+      background: linear-gradient(120deg, rgba(16,185,129,0.55), rgba(56,189,248,0.3));
+      -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      pointer-events: none;
+    }
+    .theme-light .gradient-border::before {
+      background: linear-gradient(120deg, rgba(59,130,246,0.45), rgba(56,189,248,0.35), rgba(16,185,129,0.35));
+    }
+    .pill-active {
+      background: linear-gradient(135deg, rgba(16,185,129,0.24), rgba(56,189,248,0.18));
+      color: #e2e8f0;
+      box-shadow: 0 0 0 1px rgba(16,185,129,0.55), 0 8px 26px rgba(16,185,129,0.08);
+    }
+    .theme-light .pill-active {
+      background: linear-gradient(135deg, rgba(59,130,246,0.14), rgba(16,185,129,0.18));
+      color: #0f172a;
+      box-shadow: 0 0 0 1px rgba(59,130,246,0.35), 0 10px 30px rgba(59,130,246,0.12);
+    }
+    .focus-glow:focus-visible {
+      outline: none;
+      box-shadow: 0 0 0 1px rgba(16,185,129,0.55), 0 0 0 6px rgba(16,185,129,0.12);
+      border-color: rgba(16,185,129,0.65) !important;
+    }
+    .theme-light .focus-glow:focus-visible {
+      box-shadow: 0 0 0 1px rgba(59,130,246,0.45), 0 0 0 6px rgba(59,130,246,0.16);
+      border-color: rgba(59,130,246,0.55) !important;
+    }
+    .ticker-shell {
+      overflow: hidden;
+      position: relative;
+    }
+    .ticker-track {
+      display: inline-flex;
+      gap: 1.5rem;
+      animation: ticker 28s linear infinite;
+    }
+    .ticker-shell:hover .ticker-track { animation-play-state: paused; }
+    @keyframes ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+
+    .sparkline {
+      position: relative;
+      height: 4px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, rgba(71,85,105,0.6), rgba(71,85,105,0.2));
+      overflow: hidden;
+    }
+    .theme-light .sparkline {
+      background: linear-gradient(90deg, rgba(226,232,240,0.9), rgba(226,232,240,0.35));
+    }
+    .sparkline::after {
+      content: "";
+      position: absolute;
+      inset: -120% 10% auto 10%;
+      height: 220%;
+      border-radius: 999px;
+      background: linear-gradient(135deg, rgba(16,185,129,0.9), rgba(56,189,248,0.8));
+      filter: drop-shadow(0 0 12px rgba(16,185,129,0.35));
+      transform: rotate(var(--spark-tilt, 0deg));
+      transform-origin: center;
+      transition: transform 200ms ease;
+    }
+    .sparkline.negative::after { background: linear-gradient(135deg, rgba(248,113,113,0.9), rgba(249,115,22,0.8)); }
+    .theme-light .sparkline::after {
+      background: linear-gradient(135deg, rgba(37,99,235,0.9), rgba(16,185,129,0.85));
+      filter: drop-shadow(0 0 12px rgba(37,99,235,0.28));
+    }
+    .theme-light .sparkline.negative::after { background: linear-gradient(135deg, rgba(248,113,113,0.9), rgba(249,115,22,0.85)); }
+
+    .alloc-pie {
+      width: 40px;
+      height: 40px;
+      border-radius: 999px;
+      background: conic-gradient(var(--alloc-color, #22c55e) calc(var(--alloc, 0) * 1%), rgba(148,163,184,0.2) 0);
+      box-shadow: inset 0 0 0 1px rgba(148,163,184,0.25);
+      position: relative;
+    }
+    .alloc-pie::after {
+      content: "";
+      position: absolute;
+      inset: 8px;
+      border-radius: 999px;
+      background: rgba(15,23,42,0.9);
+      box-shadow: inset 0 0 0 1px rgba(148,163,184,0.25);
+    }
+    .theme-light .alloc-pie::after {
+      background: rgba(255,255,255,0.94);
+      box-shadow: inset 0 0 0 1px rgba(148,163,184,0.35);
+    }
+
+    .toast-modern {
+      position: relative;
+      border-radius: 18px;
+      background: rgba(15,23,42,0.75);
+      border: 1px solid rgba(148,163,184,0.25);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.45);
+      padding: 10px 12px;
+    }
+    .toast-modern::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      padding: 1px;
+      background: linear-gradient(145deg, rgba(16,185,129,0.55), rgba(56,189,248,0.4));
+      -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      pointer-events: none;
+    }
+    .theme-light .toast-modern {
+      background: rgba(255,255,255,0.88);
+      border-color: rgba(148,163,184,0.45);
+      box-shadow: 0 18px 40px rgba(15,23,42,0.18);
+      color: #0f172a;
+    }
+    .theme-light .toast-modern::before {
+      background: linear-gradient(145deg, rgba(59,130,246,0.45), rgba(16,185,129,0.35));
+    }
+
+    .theme-light .text-slate-100,
+    .theme-light .text-slate-200 { color: #0f172a !important; }
+    .theme-light .text-slate-300 { color: #334155 !important; }
+    .theme-light .text-slate-400 { color: #475569 !important; }
+    .theme-light .text-slate-500 { color: #64748b !important; }
+
+    .theme-light .bg-slate-950,
+    .theme-light .bg-slate-950\/80,
+    .theme-light .bg-slate-950\/70,
+    .theme-light .bg-slate-950\/60,
+    .theme-light .bg-slate-900,
+    .theme-light .bg-slate-900\/90,
+    .theme-light .bg-slate-900\/80,
+    .theme-light .bg-slate-900\/70,
+    .theme-light .bg-slate-900\/60,
+    .theme-light .bg-slate-900\/50,
+    .theme-light .bg-slate-900\/40,
+    .theme-light .bg-slate-900\/30,
+    .theme-light .bg-slate-800\/80,
+    .theme-light .bg-slate-800\/70,
+    .theme-light .bg-slate-800\/60,
+    .theme-light .bg-slate-800\/50,
+    .theme-light .bg-slate-700,
+    .theme-light .bg-slate-700\/50 {
+      background: linear-gradient(145deg, rgba(255,255,255,0.9), rgba(226,232,240,0.76));
+      border: 1px solid rgba(148,163,184,0.32);
+      backdrop-filter: blur(16px) saturate(108%);
+      box-shadow: 0 12px 32px rgba(15,23,42,0.14);
+    }
+    .theme-light .border-slate-900\/60,
+    .theme-light .border-slate-900,
+    .theme-light .border-slate-800,
+    .theme-light .border-slate-800\/70,
+    .theme-light .border-slate-800\/60,
+    .theme-light .border-slate-800\/50,
+    .theme-light .border-slate-700,
+    .theme-light .border-slate-700\/50,
+    .theme-light .border-slate-600 {
+      border-color: rgba(148,163,184,0.45) !important;
+    }
+    .theme-light .bg-slate-800\/70 span,
+    .theme-light .bg-slate-800\/70 strong { color: inherit; }
+
+    .theme-light input,
+    .theme-light select,
+    .theme-light textarea {
+      color: #0f172a;
+      background: linear-gradient(120deg, rgba(255,255,255,0.9), rgba(226,232,240,0.82));
+      border-color: rgba(148,163,184,0.5) !important;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.9), 0 6px 18px rgba(15,23,42,0.08);
+    }
+
+    .theme-toggle {
+      background: linear-gradient(135deg, rgba(15,23,42,0.9), rgba(15,23,42,0.78));
+      border: 1px solid rgba(148,163,184,0.3);
+      box-shadow: 0 12px 30px rgba(0,0,0,0.35);
+    }
+    .theme-light .theme-toggle {
+      background: linear-gradient(135deg, rgba(255,255,255,0.94), rgba(224,231,255,0.86));
+      box-shadow: 0 14px 32px rgba(59,130,246,0.12);
+      border-color: rgba(148,163,184,0.46);
+      color: #0f172a;
+    }
+
+    @media (max-width: 640px) {
+      body { font-size: 14px; }
+      .mobile-stack { flex-direction: column; align-items: flex-start; }
+      .mobile-stack > * { width: 100%; }
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-slate-950 text-slate-100 antialiased">
+<div class="min-h-screen flex flex-col">
+  <!-- HEADER -->
+  <header class="border-b border-slate-900/60 glass-surface">
+    <div class="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-10 py-3.5 flex flex-wrap sm:flex-nowrap items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="relative flex h-9 w-9 items-center justify-center">
+          <div class="absolute inset-0 rounded-2xl bg-gradient-to-tr from-emerald-500/30 via-cyan-400/10 to-sky-500/40 blur-md opacity-70"></div>
+          <div class="relative flex h-8 w-8 items-center justify-center rounded-2xl border border-emerald-400/60 bg-slate-950/80 ring-1 ring-emerald-400/30">
+            <span class="h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_14px_rgba(16,185,129,0.95)] animate-pulse"></span>
+          </div>
+        </div>
+        <div>
+          <h1 class="text-base sm:text-lg font-semibold tracking-tight flex items-center gap-2">
+            Minimal Crypto
+            <span class="rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.18em] text-emerald-300">
+              Portfolio
+            </span>
+          </h1>
+          <p class="mt-1 text-xs text-slate-400">
+            Clean crypto dashboard with live pricing, TA tools, alerts, risk & news.
+          </p>
+        </div>
+      </div>
+      <div class="flex items-center gap-3 text-[11px] sm:text-xs mobile-stack sm:flex-row sm:items-center">
+        <div class="hidden sm:flex items-center gap-2 text-slate-400">
+          <span class="inline-flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span id="price-status">Live prices</span>
+          <span id="price-stale" class="hidden rounded-full border border-amber-500/50 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-200">Stale</span>
+        </div>
+        <div class="hidden sm:flex flex-col items-end text-slate-500">
+          <span class="uppercase tracking-[0.16em] text-[9px]">Updated</span>
+          <span id="last-updated" class="font-mono text-xs text-slate-300">--</span>
+        </div>
+        <div class="flex flex-wrap sm:flex-nowrap items-center justify-start sm:justify-end gap-2 w-full sm:w-auto">
+          <select id="global-currency-select"
+                  class="min-w-[88px] rounded-full border border-slate-700 bg-slate-900/90 px-2 py-1.5 text-[11px] font-medium text-slate-200 focus:outline-none focus:border-emerald-500/70 focus:ring-1 focus:ring-emerald-400/50">
+            <option value="usd" selected>USD</option>
+            <option value="eur">EUR</option>
+            <option value="gbp">GBP</option>
+            <option value="jpy">JPY</option>
+            <option value="aud">AUD</option>
+            <option value="cad">CAD</option>
+          </select>
+          <button id="refresh-btn"
+                  class="inline-flex items-center justify-center gap-1.5 rounded-full border border-slate-700 bg-slate-900/90 px-3 py-1.5 text-[11px] font-semibold hover:border-emerald-400/70 hover:text-emerald-200 transition focus-visible:ring-1 focus-visible:ring-emerald-400/40">
+            <span id="refresh-dot" class="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.9)]"></span>
+            Refresh
+          </button>
+          <button id="theme-toggle" type="button"
+                  class="theme-toggle inline-flex items-center justify-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-semibold text-slate-100 hover:border-emerald-400/70 hover:text-emerald-200 transition focus-visible:ring-1 focus-visible:ring-emerald-400/40">
+            <span id="theme-dot" class="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.9)]"></span>
+            <span id="theme-label">Dark</span>
+          </button>
+        </div>
+        <div class="hidden sm:flex items-center gap-2 text-[10px] text-slate-400">
+          <div class="relative w-44">
+            <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[11px] text-slate-600">🔑</span>
+            <input id="cg-api-key" type="password" placeholder="CoinGecko API key (optional)"
+                   class="w-full rounded-full border border-slate-800 bg-slate-900/80 pl-8 pr-3 py-1.5 text-[10px] text-slate-200 placeholder:text-slate-600 focus:border-emerald-400/70 focus:outline-none focus:ring-1 focus:ring-emerald-400/40" />
+          </div>
+          <button id="cg-api-save" class="rounded-full border border-slate-700 bg-slate-900/90 px-3 py-1.5 text-[10px] font-medium hover:border-emerald-400/70 hover:text-emerald-200 focus-visible:ring-1 focus-visible:ring-emerald-400/40">Save</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- MARKET SENTIMENT STRIP -->
+  <div class="border-b border-slate-900/60 glass-surface px-4 py-2">
+    <div class="max-w-screen-xl mx-auto flex flex-wrap items-center justify-between gap-4 text-[10px] sm:text-[11px] px-4 sm:px-6 lg:px-10">
+      <div class="ticker-shell w-full sm:w-auto">
+        <div class="ticker-track">
+          <div class="flex items-center gap-2">
+            <span class="uppercase tracking-widest text-slate-500 font-normal">Fear & Greed</span>
+            <div class="flex items-center gap-1.5">
+              <div id="fng-value" class="font-semibold text-slate-200">--</div>
+              <div id="fng-label" class="text-slate-400">--</div>
+              <div class="h-1.5 w-12 rounded-full bg-slate-800/80 overflow-hidden">
+                 <div id="fng-bar" class="h-full w-0 bg-emerald-400 transition-all duration-500"></div>
+              </div>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="uppercase tracking-widest text-slate-500 font-normal">BTC Dom</span>
+            <span id="btc-dom" class="font-mono text-slate-200 font-semibold">--%</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="uppercase tracking-widest text-slate-500 font-normal">Altseason</span>
+            <span id="alt-season" class="font-mono text-slate-200 font-semibold">--</span>
+          </div>
+          <div class="hidden sm:flex items-center gap-4 text-slate-500">
+            <div>Global Cap: <span id="global-mcap" class="text-slate-300 font-semibold">--</span></div>
+            <div>Alt Cap <span class="text-[9px] opacity-70">(ex BTC/ETH)</span>: <span id="alt-mcap" class="text-slate-300 font-semibold">--</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toasts -->
+  <div id="toast-container" class="fixed bottom-4 right-4 z-50 space-y-2 max-w-xs"></div>
+
+  <!-- MAIN -->
+  <main class="flex-1">
+    <div class="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-10 py-6 sm:py-8 space-y-6 sm:space-y-8">
+
+      <!-- SUMMARY STRIP -->
+      <section>
+        <div class="grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-4">
+          <!-- Total -->
+          <div class="md:col-span-2 rounded-2xl gradient-border glass-surface px-4 py-4 sm:px-5 sm:py-5 shadow-sm shadow-emerald-500/10">
+            <div class="flex items-start justify-between gap-4">
+              <div>
+                <p class="text-[11px] font-normal uppercase tracking-[0.18em] text-slate-400">Total balance</p>
+                <p id="total-value" class="mt-2 text-2xl sm:text-3xl font-bold tracking-tight">$0.00</p>
+                <div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] sm:text-xs text-slate-400">
+                  <div class="flex items-center gap-1.5">
+                    <span class="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
+                    <span>Cost basis</span>
+                    <span id="total-cost" class="font-mono text-slate-100">$0.00</span>
+                  </div>
+                  <div class="flex items-center gap-1.5">
+                    <span class="inline-block h-1.5 w-1.5 rounded-full bg-cyan-400"></span>
+                    <span>Unrealized P/L</span>
+                    <span id="total-pnl" class="font-mono text-slate-100">--</span>
+                    <span id="total-pnl-pct" class="font-mono text-[11px] text-slate-400"></span>
+                  </div>
+                </div>
+              </div>
+              <div class="hidden sm:flex flex-col items-end gap-2 text-[11px] text-slate-500">
+                <div class="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-950/80 px-3 py-1.5">
+                  <span class="text-[9px] uppercase tracking-[0.18em] text-slate-500">Assets</span>
+                  <span id="assets-count" class="font-mono text-xs text-slate-100 font-semibold">0</span>
+                </div>
+                <p id="allocation-note" class="max-w-[12rem] text-right">
+                  Keep majors heavy for smoother drawdowns.
+                </p>
+              </div>
+            </div>
+          </div>
+          <!-- 24h P/L -->
+          <div class="rounded-2xl glass-surface border border-slate-800 px-4 py-4 sm:px-4.5 sm:py-5">
+            <p class="text-[11px] font-normal uppercase tracking-[0.18em] text-slate-400">24h P/L</p>
+            <p id="day-pnl" class="mt-2 text-xl font-bold">$0.00</p>
+            <p id="day-pnl-pct" class="mt-1 text-[11px] font-mono text-slate-400">--</p>
+            <div id="day-spark" class="mt-2 sparkline"></div>
+            <p class="mt-2 text-[11px] text-slate-500">Approx from per-asset 24h moves.</p>
+          </div>
+          <!-- Best -->
+          <div class="rounded-2xl glass-surface border border-slate-800 px-4 py-4 sm:px-4.5 sm:py-5">
+            <p class="text-[11px] font-normal uppercase tracking-[0.18em] text-slate-400">Best 24h</p>
+            <p id="best-asset-name" class="mt-2 text-sm font-semibold">--</p>
+            <p id="best-asset-change" class="mt-1 text-[11px] font-mono text-slate-400">--</p>
+            <div id="best-spark" class="mt-2 sparkline"></div>
+            <p class="mt-2 text-[11px] text-slate-500">Ignores tiny positions.</p>
+          </div>
+          <!-- Worst -->
+          <div class="rounded-2xl glass-surface border border-slate-800 px-4 py-4 sm:px-4.5 sm:py-5">
+            <p class="text-[11px] font-normal uppercase tracking-[0.18em] text-slate-400">Worst 24h</p>
+            <p id="worst-asset-name" class="mt-2 text-sm font-semibold">--</p>
+            <p id="worst-asset-change" class="mt-1 text-[11px] font-mono text-slate-400">--</p>
+            <div id="worst-spark" class="mt-2 sparkline"></div>
+            <p class="mt-2 text-[11px] text-slate-500">Helps find what to trim.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- MAIN GRID -->
+      <section class="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,2.1fr)_minmax(0,1.2fr)] items-start">
+
+        <!-- LEFT COLUMN -->
+        <div class="space-y-6 order-2 lg:order-1">
+
+          <!-- PRICE CHART + TA -->
+          <section class="rounded-2xl border border-slate-800 bg-slate-900/70 px-4 pt-4 pb-3 sm:px-5 sm:pt-5 sm:pb-4">
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+              <div>
+                <p class="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-400">Portfolio curve & TA</p>
+                <p class="mt-1 text-[11px] text-slate-500">
+                  Synthetic equity curve (USD base) with indicators, drawing tools & chart types.
+                </p>
+              </div>
+              <div class="flex flex-col items-end gap-2">
+                <div class="inline-flex rounded-full border border-slate-800/80 bg-slate-950/70 p-1 text-[11px] gap-1 shadow-inner shadow-slate-900/70">
+                  <button type="button" data-timeframe="24h"
+                          class="timeframe-btn rounded-full px-3 py-1 font-semibold text-slate-300 pill-active transition focus-visible:outline-none">
+                    24H
+                  </button>
+                  <button type="button" data-timeframe="7d"
+                          class="timeframe-btn rounded-full px-3 py-1 text-slate-400 hover:text-slate-100 transition">
+                    7D
+                  </button>
+                  <button type="button" data-timeframe="30d"
+                          class="timeframe-btn rounded-full px-3 py-1 text-slate-400 hover:text-slate-100 transition">
+                    30D
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- TA Controls -->
+            <div class="mb-3 flex flex-wrap items-center justify-between gap-3 text-[10px] sm:text-[11px]">
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="uppercase tracking-[0.18em] text-slate-500">Chart</span>
+                <div class="inline-flex rounded-full border border-slate-700 bg-slate-950/80 p-0.5">
+                  <button type="button" data-chart-type="line"
+                          class="chart-type-btn rounded-full px-2.5 py-1 bg-slate-800 text-slate-100 shadow-[0_0_0_1px_rgba(148,163,184,0.55)]">
+                    Line
+                  </button>
+                  <button type="button" data-chart-type="candles"
+                          class="chart-type-btn rounded-full px-2.5 py-1 text-slate-400 hover:text-slate-100">
+                    Candles
+                  </button>
+                  <button type="button" data-chart-type="bars"
+                          class="chart-type-btn rounded-full px-2.5 py-1 text-slate-400 hover:text-slate-100">
+                    Bars
+                  </button>
+                </div>
+              </div>
+              <div class="flex flex-wrap items-center gap-3">
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="uppercase tracking-[0.18em] text-slate-500">Indicators</span>
+                  <label class="inline-flex items-center gap-1 text-slate-400">
+                    <input id="indicator-bb" type="checkbox"
+                           class="h-3 w-3 rounded border-slate-600 bg-slate-950 text-emerald-500 focus:ring-emerald-500">
+                    <span>BB</span>
+                  </label>
+                  <label class="inline-flex items-center gap-1 text-slate-400">
+                    <input id="indicator-rsi" type="checkbox"
+                           class="h-3 w-3 rounded border-slate-600 bg-slate-950 text-emerald-500 focus:ring-emerald-500">
+                    <span>RSI</span>
+                  </label>
+                  <label class="inline-flex items-center gap-1 text-slate-400">
+                    <input id="indicator-macd" type="checkbox"
+                           class="h-3 w-3 rounded border-slate-600 bg-slate-950 text-emerald-500 focus:ring-emerald-500">
+                    <span>MACD</span>
+                  </label>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="uppercase tracking-[0.18em] text-slate-500">Draw</span>
+                  <select id="draw-tool-select"
+                          class="rounded-full border border-slate-700 bg-slate-950/80 px-2.5 py-1 text-[11px] text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/70 focus:ring-offset-1 focus:ring-offset-slate-950">
+                    <option value="none">None</option>
+                    <option value="trendline">Trendline</option>
+                    <option value="fib">Fib retracement</option>
+                  </select>
+                  <button type="button" id="draw-clear"
+                          class="rounded-full border border-slate-700 bg-slate-950/80 px-2.5 py-1 text-[11px] text-slate-300 hover:border-slate-500 hover:text-slate-100">
+                    Clear
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="relative h-64 sm:h-72">
+              <canvas id="performance-chart" class="absolute inset-0 w-full h-full"></canvas>
+              <div id="chart-empty"
+                   class="absolute inset-0 flex items-center justify-center text-[11px] text-slate-500">
+                Add at least one asset to see a simulated curve.
+              </div>
+            </div>
+            <p class="mt-2 text-[10px] text-slate-500">
+              Drawing: pick a tool, click once for the first point and again for the second. Fib uses your two points as range.
+            </p>
+          </section>
+
+          <!-- ADVANCED METRICS + RISK + HISTORY/SCENARIOS -->
+          <section class="rounded-2xl border border-slate-800 bg-slate-900/70 px-4 pt-4 pb-4 sm:px-5 sm:pt-5 sm:pb-5">
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+              <div>
+                <h2 class="text-sm font-semibold tracking-tight">Advanced metrics & risk</h2>
+                <p class="mt-1 text-[11px] text-slate-500 max-w-md">
+                  Synthetic stats from the curve plus simple VaR, stress tests, rough correlations and benchmark comparison.
+                </p>
+              </div>
+              <span class="rounded-full bg-slate-950/80 px-2.5 py-1 text-[10px] uppercase tracking-[0.18em] text-slate-400">
+                Quant view
+              </span>
+            </div>
+
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1.1fr)_minmax(0,1.1fr)] items-start text-[11px] sm:text-xs">
+              <!-- Perf stats -->
+              <div class="space-y-3">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div class="rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2.5">
+                    <p class="uppercase tracking-[0.18em] text-[9px] text-slate-500">Annualized return</p>
+                    <p id="metric-annualized" class="mt-1.5 text-sm font-semibold text-slate-100">--</p>
+                    <p class="mt-0.5 text-[10px] text-slate-500">From curve slope (very rough).</p>
+                  </div>
+                  <div class="rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2.5">
+                    <p class="uppercase tracking-[0.18em] text-[9px] text-slate-500">Volatility</p>
+                    <p id="metric-volatility" class="mt-1.5 text-sm font-semibold text-slate-100">--</p>
+                    <p class="mt-0.5 text-[10px] text-slate-500">Annualized from daily swings.</p>
+                  </div>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div class="rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2.5">
+                    <p class="uppercase tracking-[0.18em] text-[9px] text-slate-500">Sharpe ratio</p>
+                    <p id="metric-sharpe" class="mt-1.5 text-sm font-semibold text-slate-100">--</p>
+                    <p class="mt-0.5 text-[10px] text-slate-500">Return per unit of risk (r≈0%).</p>
+                  </div>
+                  <div class="rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2.5">
+                    <p class="uppercase tracking-[0.18em] text-[9px] text-slate-500">Max drawdown</p>
+                    <p id="metric-maxdd" class="mt-1.5 text-sm font-semibold text-slate-100">--</p>
+                    <p class="mt-0.5 text-[10px] text-slate-500">Worst peak-to-trough drop.</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- VaR + correlations -->
+              <div class="space-y-3">
+                <div class="rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2.5 space-y-1.5">
+                  <div class="flex items-baseline justify-between gap-2">
+                    <p class="uppercase tracking-[0.18em] text-[9px] text-slate-500">Value at Risk</p>
+                    <span class="text-[10px] text-slate-400">95% · 1d Monte Carlo</span>
+                  </div>
+                  <div class="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+                    <p id="metric-var-1d" class="text-sm font-semibold text-slate-100">--</p>
+                    <p id="metric-var-1d-pct" class="text-[11px] font-mono text-slate-400">--</p>
+                  </div>
+                  <p class="text-[10px] text-slate-500">
+                    5-day VaR: <span id="metric-var-5d" class="font-mono text-slate-300">--</span>
+                  </p>
+                  <div class="flex items-center gap-2 mt-1">
+                    <label for="risk-stress-select"
+                           class="text-[9px] uppercase tracking-[0.18em] text-slate-500">Stress</label>
+                    <select id="risk-stress-select"
+                            class="rounded-full border border-slate-700 bg-slate-950/80 px-2.5 py-1 text-[11px] text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/70 focus:ring-offset-1 focus:ring-offset-slate-950">
+                      <option value="-0.10">-10% mild</option>
+                      <option value="-0.25" selected>-25% moderate</option>
+                      <option value="-0.40">-40% crash</option>
+                    </select>
+                  </div>
+                  <p class="mt-1 text-[10px] text-slate-500">
+                    Scenario (<span id="risk-stress-label" class="font-mono text-slate-300">-25%</span>):
+                    <span id="risk-stress-summary" class="font-mono text-slate-300">Add holdings to see crash impact.</span>
+                  </p>
+                </div>
+
+                <div class="rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2.5 space-y-1.5">
+                  <div class="flex items-baseline justify-between gap-2">
+                    <p class="uppercase tracking-[0.18em] text-[9px] text-slate-500">Correlation map</p>
+                    <span class="text-[10px] text-slate-400">Simulated · top assets</span>
+                  </div>
+                  <div id="risk-corr-grid" class="mt-1 text-[9px] text-slate-200">
+                    <p class="text-[10px] text-slate-500">
+                      Add at least two assets to see simulated correlations.
+                    </p>
+                  </div>
+                  <p id="risk-insight-text" class="mt-1 text-[10px] text-slate-500">
+                    We simulate 60 days of returns per coin based on 24h moves. For intuition only.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- HISTORY & SCENARIOS -->
+            <div class="mt-4 border-t border-slate-800 pt-4 grid grid-cols-1 gap-4 md:grid-cols-3 text-[11px] sm:text-xs">
+              
+              <!-- Performance vs indices -->
+              <div class="rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-3 space-y-2.5">
+                <p class="uppercase tracking-[0.18em] text-[9px] text-slate-500">Performance vs indices (rough)</p>
+                <div class="space-y-1.5">
+                  <div class="flex items-center justify-between gap-2">
+                    <span class="text-[10px] text-slate-400">1 month (est.)</span>
+                    <div class="flex items-center gap-3">
+                      <span id="perf-month-portfolio" class="font-mono text-slate-100">--</span>
+                      <span class="text-[10px] text-slate-500">S&amp;P:</span>
+                      <span id="perf-month-sp" class="font-mono text-slate-300">~2%</span>
+                      <span class="text-[10px] text-slate-500">Nasdaq:</span>
+                      <span id="perf-month-nasdaq" class="font-mono text-slate-300">~2.5%</span>
+                    </div>
+                  </div>
+                  <div class="flex items-center justify-between gap-2">
+                    <span class="text-[10px] text-slate-400">3 months (est.)</span>
+                    <div class="flex items-center gap-3">
+                      <span id="perf-quarter-portfolio" class="font-mono text-slate-100">--</span>
+                      <span class="text-[10px] text-slate-500">S&amp;P:</span>
+                      <span id="perf-quarter-sp" class="font-mono text-slate-300">~5%</span>
+                      <span class="text-[10px] text-slate-500">Nasdaq:</span>
+                      <span id="perf-quarter-nasdaq" class="font-mono text-slate-300">~6.5%</span>
+                    </div>
+                  </div>
+                  <div class="flex items-center justify-between gap-2">
+                    <span class="text-[10px] text-slate-400">1 year (est.)</span>
+                    <div class="flex items-center gap-3">
+                      <span id="perf-year-portfolio" class="font-mono text-slate-100">--</span>
+                      <span class="text-[10px] text-slate-500">S&amp;P:</span>
+                      <span id="perf-year-sp" class="font-mono text-slate-300">~8%</span>
+                      <span class="text-[10px] text-slate-500">Nasdaq:</span>
+                      <span id="perf-year-nasdaq" class="font-mono text-slate-300">~11%</span>
+                    </div>
+                  </div>
+                </div>
+                <p class="mt-2 text-[10px] text-slate-500">
+                  Uses your synthetic 30-day curve for portfolio; index numbers are just ballpark long-run averages.
+                </p>
+              </div>
+
+              <!-- Strategy Backtester -->
+              <div class="rounded-xl border border-slate-800 bg-slate-900/70 px-3 py-3 space-y-3">
+                <div class="flex items-baseline justify-between gap-2">
+                  <p class="uppercase tracking-[0.18em] text-[9px] text-slate-500">Strategy Backtester</p>
+                  <span class="text-[10px] text-slate-400">Simulated (Synthetic)</span>
+                </div>
+                <div class="space-y-2.5">
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div class="space-y-1">
+                      <label class="text-[9px] uppercase tracking-[0.18em] text-slate-500">Strategy</label>
+                      <select id="bt-strategy" class="w-full rounded-lg border border-slate-700 bg-slate-900 px-2 py-1.5 text-xs text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                        <option value="hold">Buy & Hold</option>
+                        <option value="sma_cross">SMA Cross (20/50)</option>
+                        <option value="rsi_strat">RSI Reversal (30/70)</option>
+                        <option value="bollinger">BB Breakout</option>
+                      </select>
+                    </div>
+                    <div class="space-y-1">
+                      <label class="text-[9px] uppercase tracking-[0.18em] text-slate-500">Period</label>
+                      <select id="bt-period" class="w-full rounded-lg border border-slate-700 bg-slate-900 px-2 py-1.5 text-xs text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                        <option value="90">90 Days</option>
+                        <option value="180">180 Days</option>
+                        <option value="365" selected>1 Year</option>
+                      </select>
+                    </div>
+                  </div>
+                  <button id="bt-run-btn" type="button" class="w-full rounded-lg bg-indigo-500/90 px-3 py-2 text-xs font-medium text-white shadow-sm shadow-indigo-500/30 hover:bg-indigo-400 transition">
+                    Run Backtest
+                  </button>
+                  
+                  <!-- Results -->
+                  <div id="bt-results" class="hidden space-y-3 pt-2 border-t border-slate-800/50">
+                    <div class="grid grid-cols-3 gap-2 text-center">
+                       <div class="bg-slate-950/50 rounded p-1.5 border border-slate-800/50">
+                         <div class="text-[9px] uppercase tracking-wider text-slate-500">Sharpe</div>
+                         <div id="bt-sharpe" class="text-xs font-mono text-slate-200 mt-0.5">--</div>
+                       </div>
+                       <div class="bg-slate-950/50 rounded p-1.5 border border-slate-800/50">
+                         <div class="text-[9px] uppercase tracking-wider text-slate-500">Sortino</div>
+                         <div id="bt-sortino" class="text-xs font-mono text-slate-200 mt-0.5">--</div>
+                       </div>
+                       <div class="bg-slate-950/50 rounded p-1.5 border border-slate-800/50">
+                         <div class="text-[9px] uppercase tracking-wider text-slate-500">Max DD</div>
+                         <div id="bt-maxdd" class="text-xs font-mono text-rose-300 mt-0.5">--</div>
+                       </div>
+                    </div>
+                    <div class="h-24 w-full bg-slate-900/30 rounded border border-slate-800/50 relative overflow-hidden">
+                        <canvas id="bt-chart" class="absolute inset-0 w-full h-full"></canvas>
+                    </div>
+                    <p class="text-[9px] text-slate-500 text-center leading-relaxed">
+                       <span class="inline-block w-2 h-2 rounded-full bg-indigo-400 mr-1"></span>Strategy
+                       <span class="inline-block w-2 h-2 rounded-full bg-slate-600 ml-2 mr-1"></span>Buy & Hold
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Scenario Modeller -->
+              <div class="rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-3 space-y-3">
+                <div class="flex items-baseline justify-between gap-2">
+                  <p class="uppercase tracking-[0.18em] text-[9px] text-slate-500">Scenario modeller</p>
+                  <span class="text-[10px] text-slate-400">Market shocks</span>
+                </div>
+
+                <form id="scenario-form" class="space-y-2.5">
+                  <div class="space-y-1">
+                    <label for="scenario-amount"
+                           class="text-[9px] uppercase tracking-[0.18em] text-slate-500">Extra capital</label>
+                    <input id="scenario-amount" type="number" min="0" step="100"
+                           placeholder="e.g. 5000"
+                           class="w-full rounded-lg border border-slate-700 bg-slate-900 px-2 py-1.5 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                  </div>
+
+                  <div class="space-y-1">
+                    <label for="scenario-move"
+                           class="text-[9px] uppercase tracking-[0.18em] text-slate-500">Market move</label>
+                    <select id="scenario-move"
+                            class="w-full rounded-lg border border-slate-700 bg-slate-900 px-2 py-1.5 text-xs text-slate-100 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                      <option value="-0.10">-10% mild risk-off</option>
+                      <option value="-0.25" selected>-25% recession scare</option>
+                      <option value="-0.40">-40% crash</option>
+                      <option value="0.10">+10% relief rally</option>
+                      <option value="0.30">+30% altseason burst</option>
+                    </select>
+                  </div>
+
+                  <button type="submit"
+                          class="w-full rounded-lg bg-emerald-500/90 px-3 py-2 text-xs font-medium text-slate-950 shadow-sm shadow-emerald-500/30 hover:bg-emerald-400 transition">
+                    Run scenario
+                  </button>
+                </form>
+
+                <div class="pt-2 border-t border-slate-800/50 space-y-1.5">
+                  <div class="flex items-center justify-between">
+                    <span class="text-[10px] text-slate-500">Future value</span>
+                    <span id="scenario-result-value" class="font-mono text-xs text-slate-100">--</span>
+                  </div>
+                  <div class="flex items-center justify-between">
+                    <span class="text-[10px] text-slate-500">P/L vs today</span>
+                    <span id="scenario-result-pnl" class="font-mono text-xs text-slate-100">--</span>
+                  </div>
+                  <p id="scenario-note" class="text-[9px] text-slate-500">
+                    Uses a simple linear shock on your current portfolio + extra capital.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- HOLDINGS TABLE -->
+          <section class="rounded-2xl border border-slate-800 bg-slate-900/70 px-3 pt-4 pb-3 sm:px-5 sm:pt-5 sm:pb-4">
+            <div class="flex flex-wrap items-baseline justify-between gap-3">
+              <div>
+                <h2 class="text-sm font-semibold tracking-tight">Portfolio holdings</h2>
+                <p class="mt-1 text-[11px] text-slate-500">
+                  Aggregated positions and P/L.
+                </p>
+              </div>
+            </div>
+            <div class="mt-3 border-t border-slate-800 pt-3 sm:pt-4">
+              <div id="holdings-cards" class="sm:hidden space-y-2"></div>
+              <div class="hidden sm:block -mx-3 sm:mx-0 overflow-x-auto">
+                <table class="min-w-full border-separate border-spacing-y-1 text-xs sm:text-sm">
+                  <thead class="text-[10px] sm:text-[11px] uppercase tracking-[0.18em] text-slate-500">
+                  <tr>
+                    <th class="px-3 py-2 text-left font-medium">Asset</th>
+                    <th class="px-3 py-2 text-right font-medium">Amount</th>
+                    <th class="px-3 py-2 text-right font-medium">Price</th>
+                    <th class="px-3 py-2 text-right font-medium">Value</th>
+                    <th class="px-3 py-2 text-right font-medium">P/L</th>
+                    <th class="px-3 py-2 text-right font-medium">Alloc</th>
+                    <th class="px-3 py-2 text-right font-medium"></th>
+                  </tr>
+                  </thead>
+                  <tbody id="holdings-body"></tbody>
+                </table>
+              </div>
+              <p id="no-holdings" class="mt-3 text-[11px] text-slate-500">
+                No positions yet. Add one in the Add position panel.
+              </p>
+            </div>
+          </section>
+        </div>
+
+        <!-- RIGHT COLUMN -->
+        <div class="space-y-6 order-1 lg:order-2">
+
+          <!-- ADD / EDIT POSITION -->
+          <section class="rounded-2xl border border-slate-800 bg-slate-900/70 px-4 py-4 sm:px-5 sm:py-5">
+            <header class="flex items-start justify-between gap-3">
+              <div>
+                <h2 id="asset-form-title" class="text-sm font-semibold tracking-tight">Add position</h2>
+                <p class="mt-1 text-[11px] text-slate-500">Everything stays local in your browser.</p>
+              </div>
+              <span class="hidden sm:inline-flex items-center rounded-full border border-slate-700 bg-slate-950/80 px-2.5 py-1 text-[10px] uppercase tracking-[0.18em] text-slate-400">
+                Local only
+              </span>
+            </header>
+            <form id="asset-form" class="mt-3 space-y-3 text-xs sm:text-sm">
+              <div class="space-y-1.5">
+                <label for="asset-select"
+                       class="block text-[11px] font-medium uppercase tracking-[0.18em] text-slate-400">Asset</label>
+                <input id="asset-search" type="text" placeholder="Search coin..." list="asset-suggestions"
+                       class="w-full mb-1.5 rounded-xl border border-slate-700 bg-slate-950/70 px-3 py-2 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/70 focus:ring-offset-1 focus:ring-offset-slate-950">
+                <datalist id="asset-suggestions"></datalist>
+                <select id="asset-select"
+                        class="w-full rounded-xl border border-slate-700 bg-slate-950/70 px-3 py-2 text-xs sm:text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/70 focus:ring-offset-1 focus:ring-offset-slate-950"></select>
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div class="space-y-1.5">
+                  <label for="asset-amount"
+                         class="block text-[11px] font-medium uppercase tracking-[0.18em] text-slate-400">Amount</label>
+                  <input id="asset-amount" type="number" min="0" step="0.00000001" placeholder="0.00"
+                         class="w-full rounded-xl border border-slate-700 bg-slate-950/70 px-3 py-2 text-xs sm:text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/70 focus:ring-offset-1 focus:ring-offset-slate-950">
+                </div>
+                <div class="space-y-1.5">
+                  <label for="asset-buy-price"
+                         class="block text-[11px] font-medium uppercase tracking-[0.18em] text-slate-400">Buy price</label>
+                  <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <input id="asset-buy-price" type="number" min="0" step="0.01" placeholder="Use market"
+                           class="flex-1 rounded-xl border border-slate-700 bg-slate-950/70 px-3 py-2 text-xs sm:text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/70 focus:ring-offset-1 focus:ring-offset-slate-950">
+                    <select id="asset-entry-currency"
+                            class="w-full sm:w-24 rounded-xl border border-slate-700 bg-slate-900/70 px-2 py-2 text-xs sm:text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/70">
+                      <option value="usd" selected>USD</option>
+                      <option value="eur">EUR</option>
+                      <option value="gbp">GBP</option>
+                      <option value="jpy">JPY</option>
+                      <option value="aud">AUD</option>
+                      <option value="cad">CAD</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <p id="asset-form-error" class="text-[11px] text-rose-400 hidden"></p>
+              <button type="submit"
+                      class="w-full inline-flex items-center justify-center rounded-xl bg-emerald-500/90 px-3 py-2.5 text-xs sm:text-sm font-medium text-slate-950 shadow-sm shadow-emerald-500/40 hover:bg-emerald-400 transition">
+                <span id="asset-submit-label">Add position</span>
+              </button>
+              <button type="button" id="asset-cancel-edit"
+                      class="hidden w-full text-[11px] text-slate-400 underline-offset-4 hover:text-slate-200 hover:underline">
+                Cancel editing
+              </button>
+              <p class="text-[11px] text-slate-500">
+                Tip: leave <span class="font-medium">Buy price</span> empty to use current market as cost basis.
+              </p>
+            </form>
+          </section>
+
+          <!-- ALLOCATION MINI -->
+          <section class="rounded-2xl border border-slate-800 bg-slate-900/70 px-4 py-4 sm:px-5 sm:py-5">
+            <header class="flex items-center justify-between gap-3">
+              <div>
+                <h2 class="text-sm font-semibold tracking-tight">Allocation</h2>
+                <p class="mt-1 text-[11px] text-slate-500">Where your capital sits.</p>
+              </div>
+              <span class="rounded-full bg-slate-950/80 px-2.5 py-1 text-[10px] uppercase tracking-[0.18em] text-slate-400">
+                Exposure
+              </span>
+            </header>
+            <div id="allocation-list" class="mt-3 space-y-2 text-xs sm:text-sm"></div>
+            <p id="allocation-empty" class="mt-2 text-[11px] text-slate-500">
+              Once you add assets, you'll see a simple breakdown here.
+            </p>
+          </section>
+
+          <!-- PRICE ALERTS -->
+          <section class="rounded-2xl border border-slate-800 bg-slate-900/70 px-4 py-4 sm:px-5 sm:py-5">
+            <header class="flex items-center justify-between gap-3">
+              <div>
+                <h2 class="text-sm font-semibold tracking-tight">Price alerts</h2>
+                <p class="mt-1 text-[11px] text-slate-500">
+                  Get a toast + sound when a coin hits your level. Alerts stored locally.
+                </p>
+              </div>
+              <span class="rounded-full bg-slate-950/80 px-2.5 py-1 text-[10px] uppercase tracking-[0.18em] text-slate-400">
+                Beep on trigger
+              </span>
+            </header>
+            <form id="alerts-form" class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] sm:text-xs items-end">
+              <div class="col-span-1 sm:col-span-2 space-y-1">
+                <label for="alerts-asset"
+                       class="text-[9px] uppercase tracking-[0.18em] text-slate-500">Asset</label>
+                <select id="alerts-asset"
+                        class="w-full rounded-xl border border-slate-700 bg-slate-950/70 px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/70 focus:ring-offset-1 focus:ring-offset-slate-950"></select>
+              </div>
+              <div class="space-y-1">
+                <label for="alerts-direction"
+                       class="text-[9px] uppercase tracking-[0.18em] text-slate-500">Direction</label>
+                <select id="alerts-direction"
+                        class="w-full rounded-xl border border-slate-700 bg-slate-950/70 px-2 py-1.5 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/70 focus:ring-offset-1 focus:ring-offset-slate-950">
+                  <option value="above">Above (≥)</option>
+                  <option value="below">Below (≤)</option>
+                </select>
+              </div>
+              <div class="space-y-1">
+                <label for="alerts-price"
+                       class="text-[9px] uppercase tracking-[0.18em] text-slate-500">Target price</label>
+                <input id="alerts-price" type="number" min="0" step="0.0001" placeholder="e.g. 50000"
+                       class="w-full rounded-xl border border-slate-700 bg-slate-950/70 px-3 py-1.5 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/70 focus:ring-offset-1 focus:ring-offset-slate-950">
+              </div>
+              <div class="col-span-1 sm:col-span-2 flex items-center gap-2">
+                <input id="alerts-repeat" type="checkbox" checked
+                       class="h-3.5 w-3.5 rounded border-slate-600 bg-slate-950 text-emerald-500 focus:ring-emerald-500">
+                <label for="alerts-repeat" class="text-[10px] text-slate-400">
+                  Repeat alert (uncheck for one-shot; stays visible after trigger).
+                </label>
+              </div>
+              <div class="col-span-1 sm:col-span-2">
+                <button type="submit"
+                        class="w-full inline-flex items-center justify-center rounded-xl bg-slate-100 px-3 py-2 text-xs font-medium text-slate-950 hover:bg-white/90 transition">
+                  Add alert
+                </button>
+              </div>
+            </form>
+            <div class="mt-3 border-t border-slate-800 pt-3 sm:pt-4">
+              <p id="alerts-empty" class="text-[11px] text-slate-500">No alerts yet. Add one above.</p>
+              <ul id="alerts-list" class="mt-2 space-y-2 text-xs sm:text-sm"></ul>
+            </div>
+          </section>
+
+          <!-- NEWS TICKER -->
+          <section class="rounded-2xl border border-slate-800 bg-slate-900/70 px-4 py-4 sm:px-5 sm:py-5">
+            <header class="flex items-center justify-between gap-3">
+              <div>
+                <h2 class="text-sm font-semibold tracking-tight">News ticker</h2>
+                <p class="mt-1 text-[11px] text-slate-500">
+                  Horizontal feed with mini charts; filter by coin.
+                </p>
+              </div>
+              <div class="flex flex-col items-end gap-1">
+                <label for="news-coin-filter"
+                       class="text-[9px] uppercase tracking-[0.18em] text-slate-500">Filter</label>
+                <select id="news-coin-filter"
+                        class="rounded-full border border-slate-700 bg-slate-950/80 px-2.5 py-1 text-[11px] text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/70 focus:ring-offset-1 focus:ring-offset-slate-950">
+                  <option value="all">All</option>
+                </select>
+              </div>
+            </header>
+            <div class="mt-3 border-t border-slate-800 pt-3">
+              <div id="news-strip"
+                   class="flex gap-3 overflow-x-auto scroll-smooth snap-x snap-mandatory pb-1">
+                <!-- cards via JS -->
+              </div>
+              <p id="news-empty" class="mt-2 text-[11px] text-slate-500">Loading news…</p>
+            </div>
+          </section>
+
+          <!-- WALLET TRACKER -->
+          <section class="rounded-2xl border border-slate-800 bg-slate-900/70 px-4 py-4 sm:px-5 sm:py-5">
+            <header class="flex items-start justify-between gap-3">
+              <div>
+                <h2 class="text-sm font-semibold tracking-tight">Wallet tracker</h2>
+                <p class="mt-1 text-[11px] text-slate-500">
+                  Save blockchain addresses you want to monitor. Stored locally with quick explorer links.
+                </p>
+              </div>
+              <span class="rounded-full bg-slate-950/80 px-2.5 py-1 text-[10px] uppercase tracking-[0.18em] text-slate-400">
+                Addresses
+              </span>
+            </header>
+            <form id="wallet-form" class="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs sm:text-sm items-end">
+              <div class="space-y-1">
+                <label for="wallet-chain"
+                       class="text-[9px] uppercase tracking-[0.18em] text-slate-500">Chain</label>
+                <select id="wallet-chain"
+                        class="w-full rounded-xl border border-slate-700 bg-slate-950/70 px-3 py-2 text-xs sm:text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/70 focus:ring-offset-1 focus:ring-offset-slate-950">
+                  <option value="ethereum">Ethereum</option>
+                  <option value="bitcoin">Bitcoin</option>
+                  <option value="solana">Solana</option>
+                  <option value="polygon">Polygon</option>
+                  <option value="bsc">BNB Chain</option>
+                </select>
+              </div>
+              <div class="space-y-1 sm:col-span-2">
+                <label for="wallet-address"
+                       class="text-[9px] uppercase tracking-[0.18em] text-slate-500">Address</label>
+                <input id="wallet-address" type="text" autocomplete="off" spellcheck="false"
+                       placeholder="0x... or bc1..."
+                       class="w-full rounded-xl border border-slate-700 bg-slate-950/70 px-3 py-2 text-xs sm:text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/70 focus:ring-offset-1 focus:ring-offset-slate-950">
+              </div>
+              <div class="space-y-1 sm:col-span-2">
+                <label for="wallet-label"
+                       class="text-[9px] uppercase tracking-[0.18em] text-slate-500">Label (optional)</label>
+                <input id="wallet-label" type="text" autocomplete="off" maxlength="60"
+                       placeholder="e.g. Cold storage, Trading wallet"
+                       class="w-full rounded-xl border border-slate-700 bg-slate-950/70 px-3 py-2 text-xs sm:text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/70 focus:ring-offset-1 focus:ring-offset-slate-950">
+              </div>
+              <div class="sm:col-span-1">
+                <button type="submit"
+                        class="w-full inline-flex items-center justify-center rounded-xl bg-slate-100 px-3 py-2.5 text-xs sm:text-sm font-medium text-slate-950 hover:bg-white/90 transition">
+                  Track wallet
+                </button>
+              </div>
+            </form>
+            <div class="mt-3 border-t border-slate-800 pt-3 sm:pt-4">
+              <p id="wallet-empty" class="text-[11px] text-slate-500">
+                No wallets saved yet. Add an address above to keep it handy.
+              </p>
+              <ul id="wallet-list" class="mt-1 space-y-2 text-xs sm:text-sm"></ul>
+            </div>
+          </section>
+
+          <!-- WATCHLIST -->
+          <section class="rounded-2xl border border-slate-800 bg-slate-900/70 px-4 py-4 sm:px-5 sm:py-5">
+            <header class="flex items-start justify-between gap-3">
+              <div>
+                <h2 class="text-sm font-semibold tracking-tight">Watchlist</h2>
+                <p class="mt-1 text-[11px] text-slate-500">
+                  Coins you're tracking but not necessarily holding.
+                </p>
+              </div>
+            </header>
+            <form id="watchlist-form" class="mt-3 flex flex-col sm:flex-row gap-2 text-xs sm:text-sm">
+              <select id="watchlist-select"
+                      class="flex-1 rounded-xl border border-slate-700 bg-slate-950/70 px-3 py-2 text-xs sm:text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/70 focus:ring-offset-1 focus:ring-offset-slate-950"></select>
+              <button type="submit"
+                      class="inline-flex items-center justify-center rounded-xl bg-slate-100 px-3 py-2 text-xs sm:text-sm font-medium text-slate-950 hover:bg-white/90 transition">
+                Add
+              </button>
+            </form>
+            <div class="mt-3 border-t border-slate-800 pt-3 sm:pt-4">
+              <p id="watchlist-empty" class="text-[11px] text-slate-500">
+                No watchlist yet. Add one above.
+              </p>
+              <ul id="watchlist-list" class="mt-1 space-y-2 text-xs sm:text-sm"></ul>
+            </div>
+          </section>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="border-t border-slate-900 py-4">
+    <div class="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-10 flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] text-slate-500">
+      <p>All data stored locally. Prices via public CoinGecko + CryptoCompare APIs.</p>
+      <p>For experimentation only – not investment advice.</p>
+    </div>
+  </footer>
+</div>
+
+<script>
+/* ---------------------- Static universe & state ---------------------- */
+const COINS = [
+  {id:"bitcoin",symbol:"BTC",name:"Bitcoin"},{id:"ethereum",symbol:"ETH",name:"Ethereum"},{id:"crypto-com-chain",symbol:"CRO",name:"Cronos"},{id:"tether",symbol:"USDT",name:"Tether"},
+  {id:"binancecoin",symbol:"BNB",name:"BNB"},{id:"solana",symbol:"SOL",name:"Solana"},{id:"usd-coin",symbol:"USDC",name:"USDC"},
+  {id:"ripple",symbol:"XRP",name:"XRP"},{id:"toncoin",symbol:"TON",name:"Toncoin"},{id:"dogecoin",symbol:"DOGE",name:"Dogecoin"},
+  {id:"cardano",symbol:"ADA",name:"Cardano"},{id:"shiba-inu",symbol:"SHIB",name:"Shiba Inu"},{id:"avalanche-2",symbol:"AVAX",name:"Avalanche"},
+  {id:"tron",symbol:"TRX",name:"TRON"},{id:"polkadot",symbol:"DOT",name:"Polkadot"},{id:"bitcoin-cash",symbol:"BCH",name:"Bitcoin Cash"},
+  {id:"chainlink",symbol:"LINK",name:"Chainlink"},{id:"near",symbol:"NEAR",name:"NEAR Protocol"},{id:"matic-network",symbol:"MATIC",name:"Polygon"},
+  {id:"litecoin",symbol:"LTC",name:"Litecoin"},{id:"dai",symbol:"DAI",name:"Dai"},{id:"leo-token",symbol:"LEO",name:"LEO Token"},
+  {id:"uniswap",symbol:"UNI",name:"Uniswap"},{id:"internet-computer",symbol:"ICP",name:"Internet Computer"},{id:"ethereum-classic",symbol:"ETC",name:"Ethereum Classic"},
+  {id:"aptos",symbol:"APT",name:"Aptos"},{id:"render-token",symbol:"RNDR",name:"Render"},{id:"hedera-hashgraph",symbol:"HBAR",name:"Hedera"},
+  {id:"stellar",symbol:"XLM",name:"Stellar"},{id:"cosmos",symbol:"ATOM",name:"Cosmos"},{id:"monero",symbol:"XMR",name:"Monero"},
+  {id:"arbitrum",symbol:"ARB",name:"Arbitrum"},{id:"kaspa",symbol:"KAS",name:"Kaspa"},{id:"filecoin",symbol:"FIL",name:"Filecoin"},
+  {id:"maker",symbol:"MKR",name:"Maker"},{id:"stx",symbol:"STX",name:"Stacks"},{id:"vechain",symbol:"VET",name:"VeChain"},
+  {id:"optimism",symbol:"OP",name:"Optimism"},{id:"the-graph",symbol:"GRT",name:"The Graph"},{id:"injective-protocol",symbol:"INJ",name:"Injective"},
+  {id:"aave",symbol:"AAVE",name:"Aave"},{id:"theta-token",symbol:"THETA",name:"Theta Network"},{id:"fantom",symbol:"FTM",name:"Fantom"},
+  {id:"lidodao",symbol:"LDO",name:"Lido DAO"},{id:"thorchain",symbol:"RUNE",name:"THORChain"},{id:"arweave",symbol:"AR",name:"Arweave"},
+  {id:"fetch-ai",symbol:"FET",name:"Fetch.ai"},{id:"algorand",symbol:"ALGO",name:"Algorand"},{id:"quant-network",symbol:"QNT",name:"Quant"},
+  {id:"gala",symbol:"GALA",name:"Gala"},{id:"flow",symbol:"FLOW",name:"Flow"},{id:"eos",symbol:"EOS",name:"EOS"},
+  {id:"multiversx",symbol:"EGLD",name:"MultiversX"},{id:"axie-infinity",symbol:"AXS",name:"Axie Infinity"},{id:"sandbox",symbol:"SAND",name:"The Sandbox"},
+  {id:"neo",symbol:"NEO",name:"NEO"},{id:"tezos",symbol:"XTZ",name:"Tezos"},{id:"chiliz",symbol:"CHZ",name:"Chiliz"},
+  {id:"kava",symbol:"KAVA",name:"Kava"},{id:"mina-protocol",symbol:"MINA",name:"Mina"},{id:"klay-token",symbol:"KLAY",name:"Klaytn"},
+  {id:"iota",symbol:"IOTA",name:"IOTA"},{id:"decentraland",symbol:"MANA",name:"Decentraland"},{id:"kucoin-shares",symbol:"KCS",name:"KuCoin Token"},
+  {id:"curve-dao-token",symbol:"CRV",name:"Curve DAO"},{id:"frax-share",symbol:"FXS",name:"Frax Share"},{id:"ecash",symbol:"XEC",name:"eCash"},
+  {id:"bittorrent",symbol:"BTT",name:"BitTorrent"},{id:"zcash",symbol:"ZEC",name:"Zcash"},{id:"trust-wallet-token",symbol:"TWT",name:"Trust Wallet"},
+  {id:"havven",symbol:"SNX",name:"Synthetix"},{id:"conflux-token",symbol:"CFX",name:"Conflux"},{id:"pepe",symbol:"PEPE",name:"Pepe"},
+  {id:"floki",symbol:"FLOKI",name:"Floki"},{id:"gmx",symbol:"GMX",name:"GMX"},{id:"rocket-pool",symbol:"RPL",name:"Rocket Pool"},
+  {id:"terra-luna-2",symbol:"LUNA",name:"Terra"},{id:"gatechain-token",symbol:"GT",name:"GateToken"},{id:"oasis-network",symbol:"ROSE",name:"Oasis Network"},
+  {id:"blur",symbol:"BLUR",name:"Blur"},{id:"sui",symbol:"SUI",name:"Sui"},{id:"pax-gold",symbol:"PAXG",name:"PAX Gold"},
+  {id:"compound-governance-token",symbol:"COMP",name:"Compound"},{id:"zilliqa",symbol:"ZIL",name:"Zilliqa"},{id:"dash",symbol:"DASH",name:"Dash"},
+  {id:"1inch",symbol:"1INCH",name:"1inch"},{id:"loopring",symbol:"LRC",name:"Loopring"},{id:"pancakeswap-token",symbol:"CAKE",name:"PancakeSwap"},
+  {id:"basic-attention-token",symbol:"BAT",name:"Basic Attention Token"},{id:"enjincoin",symbol:"ENJ",name:"Enjin Coin"},{id:"qtum",symbol:"QTUM",name:"Qtum"},
+  {id:"mask-network",symbol:"MASK",name:"Mask Network"},{id:"celo",symbol:"CELO",name:"Celo"},{id:"nem",symbol:"XEM",name:"NEM"},
+  {id:"osmosis",symbol:"OSMO",name:"Osmosis"},{id:"convex-finance",symbol:"CVX",name:"Convex Finance"},{id:"yearn-finance",symbol:"YFI",name:"yearn.finance"},
+  {id:"ankr",symbol:"ANKR",name:"Ankr"},{id:"ravencoin",symbol:"RVN",name:"Ravencoin"},{id:"0x",symbol:"ZRX",name:"0x Protocol"},
+  {id:"stepn",symbol:"GMT",name:"STEPN"},{id:"wax",symbol:"WAXP",name:"WAX"},{id:"audius",symbol:"AUDIO",name:"Audius"},
+  {id:"siacoin",symbol:"SC",name:"Siacoin"},{id:"holo",symbol:"HOT",name:"Holo"},{id:"band-protocol",symbol:"BAND",name:"Band Protocol"},
+  {id:"ontology",symbol:"ONT",name:"Ontology"},{id:"iostoken",symbol:"IOST",name:"IOST"},{id:"digibyte",symbol:"DGB",name:"DigiByte"},
+  {id:"kadena",symbol:"KDA",name:"Kadena"},{id:"moonbeam",symbol:"GLMR",name:"Moonbeam"},{id:"skale",symbol:"SKL",name:"SKALE"},
+  {id:"livepeer",symbol:"LPT",name:"Livepeer"},{id:"icon",symbol:"ICX",name:"ICON"},{id:"secret",symbol:"SCRT",name:"Secret"},
+  {id:"just",symbol:"JST",name:"JUST"},{id:"cartesi",symbol:"CTSI",name:"Cartesi"},{id:"api3",symbol:"API3",name:"API3"},
+  {id:"biconomy",symbol:"BICO",name:"Biconomy"},{id:"galxe",symbol:"GAL",name:"Galxe"},{id:"moonriver",symbol:"MOVR",name:"Moonriver"},
+  {id:"origin-protocol",symbol:"OGN",name:"Origin Protocol"},{id:"chromia",symbol:"CHR",name:"Chromia"},{id:"superfarm",symbol:"SUPER",name:"SuperVerse"},
+  {id:"coti",symbol:"COTI",name:"COTI"},{id:"syscoin",symbol:"SYS",name:"Syscoin"},{id:"hive",symbol:"HIVE",name:"Hive"},
+  {id:"status",symbol:"SNT",name:"Status"},{id:"dent",symbol:"DENT",name:"Dent"},{id:"ocean-protocol",symbol:"OCEAN",name:"Ocean Protocol"},
+  {id:"power-ledger",symbol:"POWR",name:"Powerledger"},{id:"civic",symbol:"CVC",name:"Civic"},{id:"stormx",symbol:"STMX",name:"StormX"},
+  {id:"numeraire",symbol:"NMR",name:"Numeraire"},{id:"request-network",symbol:"REQ",name:"Request"},{id:"metal",symbol:"MTL",name:"Metal DAO"},
+  {id:"nkn",symbol:"NKN",name:"NKN"},{id:"funfair",symbol:"FUN",name:"FUNToken"},{id:"rlc",symbol:"RLC",name:"iExec RLC"},
+  {id:"ark",symbol:"ARK",name:"Ark"},{id:"verge",symbol:"XVG",name:"Verge"},{id:"steem",symbol:"STEEM",name:"Steem"},
+  {id:"bancor",symbol:"BNT",name:"Bancor"},{id:"augur",symbol:"REP",name:"Augur"},{id:"nano",symbol:"XNO",name:"Nano"},
+  {id:"kyber-network-crystal",symbol:"KNC",name:"Kyber Network"},{id:"uma",symbol:"UMA",name:"UMA"},{id:"sushi",symbol:"SUSHI",name:"SushiSwap"},
+  {id:"balancer",symbol:"BAL",name:"Balancer"},{id:"badger-dao",symbol:"BADGER",name:"Badger DAO"},{id:"perpetual-protocol",symbol:"PERP",name:"Perpetual Protocol"},
+  {id:"reef",symbol:"REEF",name:"Reef"},{id:"dodo",symbol:"DODO",name:"DODO"},{id:"alpha-finance",symbol:"ALPHA",name:"Stella"},
+  {id:"prom",symbol:"PROM",name:"Prom"},{id:"linear",symbol:"LINA",name:"Linear"},{id:"idex",symbol:"IDEX",name:"IDEX"},
+  {id:"polymath",symbol:"POLY",name:"Polymath"},{id:"bakerytoken",symbol:"BAKE",name:"BakeryToken"},{id:"burger-swap",symbol:"BURGER",name:"BurgerCities"},
+  {id:"cream-2",symbol:"CREAM",name:"Cream Finance"},{id:"farm",symbol:"FARM",name:"Harvest Finance"},{id:"keep-network",symbol:"KEEP",name:"Keep Network"},
+  {id:"nu-cypher",symbol:"NU",name:"NuCypher"},{id:"threshold-network-token",symbol:"T",name:"Threshold"},{id:"ren",symbol:"REN",name:"Ren"},
+  {id:"raydium",symbol:"RAY",name:"Raydium"},{id:"serum",symbol:"SRM",name:"Serum"},{id:"star-atlas-dao",symbol:"POLIS",name:"Star Atlas DAO"},
+  {id:"orca",symbol:"ORCA",name:"Orca"},{id:"marinade-staked-sol",symbol:"MSOL",name:"Marinade Staked SOL"},{id:"lido-staked-sol",symbol:"STSOL",name:"Lido Staked SOL"},
+  {id:"marlin",symbol:"POND",name:"Marlin"},{id:"lcx",symbol:"LCX",name:"LCX"},{id:"dia-data",symbol:"DIA",name:"DIA"},
+  {id:"covalent",symbol:"CQT",name:"Covalent"},{id:"tellor",symbol:"TRB",name:"Tellor"},{id:"radicle",symbol:"RAD",name:"Radicle"},
+  {id:"gitcoin",symbol:"GTC",name:"Gitcoin"},{id:"ens",symbol:"ENS",name:"Ethereum Name Service"},{id:"space-id",symbol:"ID",name:"Space ID"},
+  {id:"cyberconnect",symbol:"CYBER",name:"CyberConnect"},{id:"hooked-protocol",symbol:"HOOK",name:"Hooked Protocol"},{id:"educational-coin",symbol:"EDU",name:"Open Campus"},
+  {id:"worldcoin-wld",symbol:"WLD",name:"Worldcoin"},{id:"sei-network",symbol:"SEI",name:"Sei"},{id:"ordinals",symbol:"ORDI",name:"ORDI"},
+  {id:"bonk",symbol:"BONK",name:"Bonk"},{id:"akash-network",symbol:"AKT",name:"Akash Network"},{id:"singularitynet",symbol:"AGIX",name:"SingularityNET"},
+  {id:"wootrade",symbol:"WOO",name:"WOO"},{id:"ronin",symbol:"RON",name:"Ronin"},{id:"pyth-network",symbol:"PYTH",name:"Pyth Network"},
+  {id:"jupiter-exchange-solana",symbol:"JUP",name:"Jupiter"},{id:"manta-network",symbol:"MANTA",name:"Manta Network"},{id:"dymension",symbol:"DYM",name:"Dymension"},
+  {id:"altlayer",symbol:"ALT",name:"AltLayer"},{id:"beam-2",symbol:"BEAM",name:"Beam"},{id:"arkham",symbol:"ARKM",name:"Arkham"},
+  {id:"starknet",symbol:"STRK",name:"Starknet"},{id:"ethena",symbol:"ENA",name:"Ethena"},{id:"dogwifhat",symbol:"WIF",name:"dogwifhat"},
+  {id:"my-neighbor-alice",symbol:"ALICE",name:"My Neighbor Alice"},{id:"illuvium",symbol:"ILV",name:"Illuvium"},{id:"vulcan-forged",symbol:"PYR",name:"Vulcan Forged"},
+  {id:"yield-guild-games",symbol:"YGG",name:"Yield Guild Games"},{id:"star-atlas",symbol:"ATLAS",name:"Star Atlas"},{id:"aurora-near",symbol:"AURORA",name:"Aurora"},
+  {id:"metis-token",symbol:"METIS",name:"Metis"},{id:"boba-network",symbol:"BOBA",name:"Boba Network"},{id:"ribbon-finance",symbol:"RBN",name:"Ribbon Finance"},
+  {id:"hashflow",symbol:"HFT",name:"Hashflow"},{id:"magic",symbol:"MAGIC",name:"Magic"},{id:"looksrare",symbol:"LOOKS",name:"LooksRare"},
+  {id:"x2y2",symbol:"X2Y2",name:"X2Y2"},{id:"alchemy-pay",symbol:"ACH",name:"Alchemy Pay"},{id:"rss3",symbol:"RSS3",name:"RSS3"},
+  {id:"stargate-finance",symbol:"STG",name:"Stargate Finance"},{id:"synapse-2",symbol:"SYN",name:"Synapse"},{id:"hop-protocol",symbol:"HOP",name:"Hop Protocol"},
+  {id:"across-protocol",symbol:"ACX",name:"Across Protocol"},{id:"celer-network",symbol:"CELR",name:"Celer Network"},{id:"layerzero",symbol:"ZRO",name:"LayerZero"},
+  {id:"eigenlayer",symbol:"EIGEN",name:"EigenLayer"},{id:"ether-fi",symbol:"ETHFI",name:"ether.fi"},{id:"renzo",symbol:"REZ",name:"Renzo"},
+  {id:"puffer",symbol:"PUFFER",name:"Puffer"},{id:"kelp-dao",symbol:"KELP",name:"Kelp DAO"},{id:"swell-network",symbol:"SWELL",name:"Swell"},
+  {id:"mantle",symbol:"MNT",name:"Mantle"},{id:"blast",symbol:"BLAST",name:"Blast"},{id:"linea",symbol:"LINEA",name:"Linea"},
+  {id:"base",symbol:"BASE",name:"Base"},{id:"zksync",symbol:"ZK",name:"zkSync"},{id:"scroll",symbol:"SCROLL",name:"Scroll"},
+  {id:"taiko",symbol:"TAIKO",name:"Taiko"},{id:"aztec",symbol:"AZTEC",name:"Aztec"},{id:"fuel",symbol:"FUEL",name:"Fuel"},
+  {id:"aleo",symbol:"ALEO",name:"Aleo"},{id:"ironfish",symbol:"IRON",name:"Iron Fish"},{id:"namada",symbol:"NAM",name:"Namada"},
+  {id:"penumbra",symbol:"PEN",name:"Penumbra"},{id:"berachain",symbol:"BERA",name:"Berachain"},{id:"monad",symbol:"MONAD",name:"Monad"}
+];
+
+const STORAGE_KEYS = {
+  portfolio: "minimal-crypto-portfolio-v2-portfolio",
+  watchlist: "minimal-crypto-portfolio-v2-watchlist",
+  alerts:    "minimal-crypto-portfolio-v2-alerts",
+  wallets:   "minimal-crypto-portfolio-v2-wallets",
+  fx:        "minimal-crypto-fx-rates",
+  benchmarks:"minimal-crypto-benchmarks",
+  currency:  "minimal-crypto-preferred-currency",
+  cgApiKey:  "minimal-crypto-coingecko-api-key",
+  theme:     "minimal-crypto-preferred-theme"
+};
+
+const CURRENCY_CONFIG = {
+  usd: { locale: "en-US", currency: "USD", symbol: "$", name: "USD" },
+  eur: { locale: "de-DE", currency: "EUR", symbol: "€", name: "EUR" },
+  gbp: { locale: "en-GB", currency: "GBP", symbol: "£", name: "GBP" },
+  jpy: { locale: "ja-JP", currency: "JPY", symbol: "¥", name: "JPY" },
+  aud: { locale: "en-AU", currency: "AUD", symbol: "A$", name: "AUD" },
+  cad: { locale: "en-CA", currency: "CAD", symbol: "C$", name: "CAD" }
+};
+
+// Very rough benchmark assumptions
+const BENCHMARK_RETURNS = {
+  month:   { sp: 0.02,  nasdaq: 0.025 },
+  quarter: { sp: 0.05,  nasdaq: 0.065 },
+  year:    { sp: 0.08,  nasdaq: 0.11 },
+  hasLive: false
+};
+
+const state = {
+  portfolio: [],
+  watchlist: [],
+  alerts: [],
+  wallets: [],
+  priceData: {},
+  timeframe: "24h",
+  chartSeries: { "24h": null, "7d": null, "30d": null },
+  chartSettings: {
+    chartType: "line",  // 'line' | 'candles' | 'bars'
+    indicators: { bb: false, rsi: false, macd: false },
+    drawing: {
+      tool: "none",     // 'none' | 'trendline' | 'fib'
+      trendlines: [],   // { p1:{xNorm,yNorm}, p2:{xNorm,yNorm} }
+      fibs: [],         // { top:{xNorm,yNorm}, bottom:{xNorm,yNorm} }
+      pending: null     // { type, first:{xNorm,yNorm} }
+    }
+  },
+  theme: "dark",
+  lastPortfolioData: null,
+  news: [],
+  newsFilter: "all",
+  newsAutoScrollIndex: 0,
+  newsAutoScrollTimer: null,
+  currency: "usd",
+  fxRates: { usd: 1, eur: 0.92, gbp: 0.79, jpy: 150, aud: 1.5, cad: 1.35 }, // Default fallbacks
+  priceHistory: {},
+  lastPriceSuccess: null,
+  cgApiKey: ""
+};
+
+let audioCtx = null;
+let chartLayout = null;
+
+/* ---------------------- DOM refs ---------------------- */
+const el = {
+  totalValue: document.getElementById("total-value"),
+  totalCost: document.getElementById("total-cost"),
+  totalPnl: document.getElementById("total-pnl"),
+  totalPnlPct: document.getElementById("total-pnl-pct"),
+  assetsCount: document.getElementById("assets-count"),
+  dayPnl: document.getElementById("day-pnl"),
+  dayPnlPct: document.getElementById("day-pnl-pct"),
+  daySpark: document.getElementById("day-spark"),
+  bestName: document.getElementById("best-asset-name"),
+  bestChange: document.getElementById("best-asset-change"),
+  worstName: document.getElementById("worst-asset-name"),
+  worstChange: document.getElementById("worst-asset-change"),
+  bestSpark: document.getElementById("best-spark"),
+  worstSpark: document.getElementById("worst-spark"),
+  holdingsBody: document.getElementById("holdings-body"),
+  holdingsCards: document.getElementById("holdings-cards"),
+  noHoldings: document.getElementById("no-holdings"),
+  allocationList: document.getElementById("allocation-list"),
+  allocationEmpty: document.getElementById("allocation-empty"),
+  watchlistEmpty: document.getElementById("watchlist-empty"),
+  watchlistList: document.getElementById("watchlist-list"),
+  priceStatus: document.getElementById("price-status"),
+  lastUpdated: document.getElementById("last-updated"),
+  refreshBtn: document.getElementById("refresh-btn"),
+  refreshDot: document.getElementById("refresh-dot"),
+  themeToggle: document.getElementById("theme-toggle"),
+  themeLabel: document.getElementById("theme-label"),
+  themeDot: document.getElementById("theme-dot"),
+  globalCurrencySelect: document.getElementById("global-currency-select"),
+  chartCanvas: document.getElementById("performance-chart"),
+  chartEmpty: document.getElementById("chart-empty"),
+  assetFormTitle: document.getElementById("asset-form-title"),
+  assetForm: document.getElementById("asset-form"),
+  assetSearch: document.getElementById("asset-search"),
+  assetSuggestions: document.getElementById("asset-suggestions"),
+  assetSelect: document.getElementById("asset-select"),
+  assetAmount: document.getElementById("asset-amount"),
+  assetBuyPrice: document.getElementById("asset-buy-price"),
+  assetEntryCurrency: document.getElementById("asset-entry-currency"),
+  assetSubmitLabel: document.getElementById("asset-submit-label"),
+  assetCancelEdit: document.getElementById("asset-cancel-edit"),
+  assetFormError: document.getElementById("asset-form-error"),
+  watchlistForm: document.getElementById("watchlist-form"),
+  watchlistSelect: document.getElementById("watchlist-select"),
+  walletForm: document.getElementById("wallet-form"),
+  walletChain: document.getElementById("wallet-chain"),
+  walletAddress: document.getElementById("wallet-address"),
+  walletLabel: document.getElementById("wallet-label"),
+  walletList: document.getElementById("wallet-list"),
+  walletEmpty: document.getElementById("wallet-empty"),
+  metricAnnualized: document.getElementById("metric-annualized"),
+  metricSharpe: document.getElementById("metric-sharpe"),
+  metricMaxDD: document.getElementById("metric-maxdd"),
+  metricVolatility: document.getElementById("metric-volatility"),
+  metricVaR1d: document.getElementById("metric-var-1d"),
+  metricVaR1dPct: document.getElementById("metric-var-1d-pct"),
+  metricVaR5d: document.getElementById("metric-var-5d"),
+  riskStressSelect: document.getElementById("risk-stress-select"),
+  riskStressLabel: document.getElementById("risk-stress-label"),
+  riskStressSummary: document.getElementById("risk-stress-summary"),
+  riskCorrGrid: document.getElementById("risk-corr-grid"),
+  riskInsightText: document.getElementById("risk-insight-text"),
+  scenarioForm: document.getElementById("scenario-form"),
+  scenarioAmount: document.getElementById("scenario-amount"),
+  scenarioMove: document.getElementById("scenario-move"),
+  scenarioResultValue: document.getElementById("scenario-result-value"),
+  scenarioResultPnl: document.getElementById("scenario-result-pnl"),
+  scenarioNote: document.getElementById("scenario-note"),
+  alertsForm: document.getElementById("alerts-form"),
+  alertsAsset: document.getElementById("alerts-asset"),
+  alertsDirection: document.getElementById("alerts-direction"),
+  alertsPrice: document.getElementById("alerts-price"),
+  alertsRepeat: document.getElementById("alerts-repeat"),
+  alertsList: document.getElementById("alerts-list"),
+  alertsEmpty: document.getElementById("alerts-empty"),
+  newsCoinFilter: document.getElementById("news-coin-filter"),
+  newsStrip: document.getElementById("news-strip"),
+  newsEmpty: document.getElementById("news-empty"),
+  indicatorBB: document.getElementById("indicator-bb"),
+  indicatorRSI: document.getElementById("indicator-rsi"),
+  indicatorMACD: document.getElementById("indicator-macd"),
+  drawToolSelect: document.getElementById("draw-tool-select"),
+  drawClear: document.getElementById("draw-clear"),
+  perfMonthPortfolio: document.getElementById("perf-month-portfolio"),
+  perfQuarterPortfolio: document.getElementById("perf-quarter-portfolio"),
+  perfYearPortfolio: document.getElementById("perf-year-portfolio"),
+  perfMonthSP: document.getElementById("perf-month-sp"),
+  perfQuarterSP: document.getElementById("perf-quarter-sp"),
+  perfYearSP: document.getElementById("perf-year-sp"),
+  perfMonthNasdaq: document.getElementById("perf-month-nasdaq"),
+  perfQuarterNasdaq: document.getElementById("perf-quarter-nasdaq"),
+  perfYearNasdaq: document.getElementById("perf-year-nasdaq"),
+  toastContainer: document.getElementById("toast-container"),
+  fngValue: document.getElementById("fng-value"),
+  fngLabel: document.getElementById("fng-label"),
+  fngBar: document.getElementById("fng-bar"),
+  btcDom: document.getElementById("btc-dom"),
+  altSeason: document.getElementById("alt-season"),
+  globalMcap: document.getElementById("global-mcap"),
+  altMcap: document.getElementById("alt-mcap"),
+  priceStale: document.getElementById("price-stale"),
+  cgApiKeyInput: document.getElementById("cg-api-key"),
+  cgApiSaveBtn: document.getElementById("cg-api-save"),
+  btStrategy: document.getElementById("bt-strategy"),
+  btPeriod: document.getElementById("bt-period"),
+  btRunBtn: document.getElementById("bt-run-btn"),
+  btResults: document.getElementById("bt-results"),
+  btSharpe: document.getElementById("bt-sharpe"),
+  btSortino: document.getElementById("bt-sortino"),
+  btMaxDD: document.getElementById("bt-maxdd"),
+  btChart: document.getElementById("bt-chart")
+};
+
+let editingCoinId = null;
+
+/* ---------------------- Utils ---------------------- */
+function loadJson(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return fallback;
+    const parsed = JSON.parse(raw);
+    return parsed ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+function saveJson(key, value) {
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch {}
+}
+function formatCurrency(v, overrideCurrency) {
+  if (!isFinite(v)) return "--";
+  const code = overrideCurrency || state.currency || "usd";
+  const cfg = CURRENCY_CONFIG[code] || CURRENCY_CONFIG.usd;
+  return v.toLocaleString(cfg.locale, { 
+    style: "currency", 
+    currency: cfg.currency,
+    minimumFractionDigits: 2, 
+    maximumFractionDigits: 2 
+  });
+}
+function formatPercent(v) {
+  if (!isFinite(v)) return "--";
+  const sign = v > 0 ? "+" : "";
+  return sign + v.toFixed(2) + "%";
+}
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+function findCoinMeta(id) {
+  return COINS.find(c => c.id === id) || null;
+}
+function shortenAddress(addr) {
+  if (!addr) return "--";
+  const clean = String(addr).trim();
+  if (clean.length <= 14) return clean;
+  return `${clean.slice(0, 6)}…${clean.slice(-6)}`;
+}
+function describeChain(chain) {
+  const map = {
+    ethereum: "Ethereum",
+    bitcoin: "Bitcoin",
+    solana: "Solana",
+    polygon: "Polygon",
+    bsc: "BNB Chain"
+  };
+  return map[chain] || chain;
+}
+function getExplorerUrl(chain, address) {
+  const safe = encodeURIComponent(address.trim());
+  switch (chain) {
+    case "bitcoin":
+      return `https://www.blockchain.com/btc/address/${safe}`;
+    case "solana":
+      return `https://solscan.io/account/${safe}`;
+    case "polygon":
+      return `https://polygonscan.com/address/${safe}`;
+    case "bsc":
+      return `https://bscscan.com/address/${safe}`;
+    default:
+      return `https://etherscan.io/address/${safe}`;
+  }
+}
+function defaultPortfolio() {
+  return [
+    { id: "bitcoin",  symbol: "BTC",  name: "Bitcoin",  amount: 0.35, buyPrice: 26000 },
+    { id: "ethereum", symbol: "ETH",  name: "Ethereum", amount: 3.8,  buyPrice: 1800 },
+    { id: "solana",   symbol: "SOL",  name: "Solana",   amount: 45,   buyPrice: 22 },
+    { id: "tether",   symbol: "USDT", name: "Tether",   amount: 1500, buyPrice: 1 }
+  ];
+}
+function loadPortfolio() {
+  const data = loadJson(STORAGE_KEYS.portfolio, null);
+  if (data === null) return defaultPortfolio();
+  if (!Array.isArray(data)) return [];
+  if (data.length === 0) return [];
+  return data
+    .map(h => {
+      const meta = findCoinMeta(h.id) || findCoinMeta(String(h.symbol || "").toLowerCase());
+      return {
+        id: meta ? meta.id : h.id,
+        symbol: meta ? meta.symbol : (h.symbol || "").toUpperCase(),
+        name: meta ? meta.name : (h.name || h.symbol || h.id),
+        amount: Number(h.amount) || 0,
+        buyPrice: Number(h.buyPrice) || 0
+      };
+    })
+    .filter(h => h.amount > 0);
+}
+function loadWatchlist() {
+  const data = loadJson(STORAGE_KEYS.watchlist, ["cardano", "dogecoin"]);
+  if (!Array.isArray(data)) return [];
+  const ids = [...new Set(data)].filter(id => COINS.some(c => c.id === id));
+  return ids;
+}
+function loadWallets() {
+  const data = loadJson(STORAGE_KEYS.wallets, []);
+  if (!Array.isArray(data)) return [];
+  return data
+    .map(w => ({
+      id: String(w.id || Date.now() + Math.random()),
+      chain: (w.chain || "ethereum").toLowerCase(),
+      address: String(w.address || "").trim(),
+      label: String(w.label || "").trim(),
+      addedAt: Number(w.addedAt) || Date.now()
+    }))
+    .filter(w => w.address);
+}
+function loadCgApiKey() {
+  try { return localStorage.getItem(STORAGE_KEYS.cgApiKey) || ""; } catch { return ""; }
+}
+function persistCgApiKey(value) {
+  try { localStorage.setItem(STORAGE_KEYS.cgApiKey, value || ""); } catch {}
+}
+function loadAlerts() {
+  const data = loadJson(STORAGE_KEYS.alerts, []);
+  if (!Array.isArray(data)) return [];
+  return data.map(a => ({
+    id: String(a.id || Date.now()),
+    coinId: String(a.coinId || ""),
+    symbol: String(a.symbol || ""),
+    name: String(a.name || ""),
+    direction: a.direction === "below" ? "below" : "above",
+    target: Number(a.target) || 0,
+    repeat: !!a.repeat,
+    active: a.active !== false,
+    lastTriggered: a.lastTriggered || null
+  }));
+}
+function persistPortfolio() {
+  saveJson(STORAGE_KEYS.portfolio, state.portfolio);
+}
+function persistWatchlist() {
+  saveJson(STORAGE_KEYS.watchlist, state.watchlist);
+}
+function persistWallets() {
+  saveJson(STORAGE_KEYS.wallets, state.wallets);
+}
+function persistAlerts() {
+  saveJson(STORAGE_KEYS.alerts, state.alerts);
+}
+function persistCurrencyPreference() {
+  saveJson(STORAGE_KEYS.currency, state.currency);
+}
+function loadCurrencyPreference() {
+  const saved = loadJson(STORAGE_KEYS.currency, null);
+  if (typeof saved !== "string") return null;
+  const code = saved.toLowerCase();
+  return CURRENCY_CONFIG[code] ? code : null;
+}
+function loadThemePreference() {
+  const saved = loadJson(STORAGE_KEYS.theme, "dark");
+  return saved === "light" ? "light" : "dark";
+}
+function persistThemePreference(theme) {
+  saveJson(STORAGE_KEYS.theme, theme === "light" ? "light" : "dark");
+}
+function applyTheme(theme) {
+  const next = theme === "light" ? "light" : "dark";
+  state.theme = next;
+  document.documentElement.classList.toggle("theme-light", next === "light");
+  document.body.classList.toggle("theme-light", next === "light");
+  if (el.themeLabel) el.themeLabel.textContent = next === "light" ? "Light" : "Dark";
+  if (el.themeToggle) el.themeToggle.setAttribute("aria-pressed", next === "light");
+  if (el.themeDot) {
+    el.themeDot.classList.toggle("bg-emerald-400", next !== "light");
+    el.themeDot.classList.toggle("bg-sky-500", next === "light");
+  }
+  persistThemePreference(next);
+}
+function getDisplayPrice(coinId) {
+  const info = state.priceData[coinId];
+  if (!info) return null;
+  const cur = state.currency;
+  if (typeof info[cur] === "number") return info[cur];
+  if (typeof info.usd === "number") {
+    const rate = state.fxRates[cur] || 1;
+    return info.usd * rate;
+  }
+  return null;
+}
+function getDisplayChange(coinId) {
+  const info = state.priceData[coinId];
+  if (!info) return null;
+  const cur = state.currency;
+  const key = `${cur}_24h_change`;
+  if (typeof info[key] === "number") return info[key];
+  if (typeof info.usd_24h_change === "number") return info.usd_24h_change;
+  return null;
+}
+function clamp(value, min = 0, max = 1) {
+  return Math.min(max, Math.max(min, value));
+}
+function pseudoCorrelation(idA, idB) {
+  const mix = (idA + idB).split("").reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+  return Math.sin(mix) * 0.9;
+}
+function seededRandom(seed) {
+    var x = Math.sin(seed++) * 10000;
+    return x - Math.floor(x);
+}
+function humanizeTimeAgo(timestamp) {
+  if (!timestamp) return "just now";
+  const diff = Date.now() - timestamp;
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+function updateTrendClass(node, value) {
+  if (!node) return;
+  node.classList.remove("text-emerald-400", "text-emerald-300", "text-rose-400", "text-rose-300", "text-slate-300", "text-slate-400");
+  if (!isFinite(value) || value === 0) node.classList.add("text-slate-300");
+  else if (value > 0) node.classList.add("text-emerald-400");
+  else node.classList.add("text-rose-400");
+}
+
+/* ---------------------- Portfolio calculations ---------------------- */
+function calculatePortfolio(portfolio, priceData) {
+  const cur = state.currency || "usd";
+  const rate = state.fxRates[cur] || 1; // Convert USD -> Target
+  
+  let totalValue = 0;
+  let totalCost = 0;
+  let dayChangeAbs = 0;
+  let hasMissingCost = false;
+
+  const detailed = portfolio.map(h => {
+    const info = priceData[h.id] || {};
+    const hasPrice = typeof info.usd === "number";
+    const priceUsd = hasPrice ? info.usd : (h.buyPrice || 0);
+    const changePct = typeof info.usd_24h_change === "number" ? info.usd_24h_change : 0;
+    
+    const price = priceUsd * rate;
+    const buyPriceVal = (h.buyPrice || 0) * rate;
+
+    const amount = Number(h.amount) || 0;
+    const value = amount * price;
+    const costPer = buyPriceVal > 0 ? buyPriceVal : 0;
+    const cost = costPer > 0 ? amount * costPer : NaN;
+    const pnlAbs = isFinite(cost) ? value - cost : NaN;
+    const pnlPct = isFinite(cost) && cost !== 0 ? pnlAbs / cost * 100 : NaN;
+    if (!isFinite(cost)) hasMissingCost = true;
+
+    totalValue += value;
+    if (isFinite(cost)) totalCost += cost;
+    dayChangeAbs += value * (changePct / 100);
+
+    return { ...h, amount, price, value, cost, pnlAbs, pnlPct, change24hPct: changePct };
+  });
+
+  const dayChangePct = totalValue ? dayChangeAbs / totalValue * 100 : NaN;
+  const totalCostDisplay = hasMissingCost ? NaN : totalCost;
+  const totalPnlAbs = hasMissingCost ? NaN : (totalValue - totalCost);
+  const totalPnlPct = hasMissingCost || !totalCost ? NaN : totalPnlAbs / totalCost * 100;
+
+  if (totalValue > 0) {
+    detailed.forEach(h => { h.allocationPct = h.value / totalValue * 100; });
+  } else {
+    detailed.forEach(h => { h.allocationPct = 0; });
+  }
+
+  let best = null, worst = null;
+  const movers = detailed.filter(h => h.value > 10 * rate && isFinite(h.change24hPct));
+  if (movers.length) {
+    movers.sort((a,b) => b.change24hPct - a.change24hPct);
+    best = movers[0];
+    worst = movers[movers.length - 1];
+  }
+
+  detailed.sort((a,b) => b.value - a.value);
+
+  return {
+    totals: { totalValue, totalCost: totalCostDisplay, totalPnlAbs, totalPnlPct, dayChangeAbs, dayChangePct },
+    holdings: detailed,
+    best, worst
+  };
+}
+
+/* ---------------------- Synthetic curve & indicators ---------------------- */
+function generateSyntheticSeries(baseValue, points, timeframe) {
+  if (!baseValue || !isFinite(baseValue)) return [];
+  const series = [];
+  const base = Math.max(baseValue, 1);
+  let vol;
+  if (timeframe === "24h") vol = 0.012;
+  else if (timeframe === "7d") vol = 0.035;
+  else vol = 0.06;
+  let v = base * (1 - vol * 0.8);
+
+  // Seed based on baseValue so it doesn't jitter on refresh
+  let seed = Math.floor(baseValue);
+
+  for (let i=0;i<points;i++) {
+    const drift = base * 0.0004;
+    // Seeded random
+    const noise = (seededRandom(seed + i) - 0.5) * 2 * vol * base;
+    v = Math.max(base*0.4, v + drift + noise);
+    const t = i / Math.max(points-1,1);
+    series.push({ t, value: v });
+  }
+  if (series.length) series[series.length-1].value = base;
+  return series;
+}
+function ensureChartSeries(timeframe, baseValue) {
+  const points = timeframe === "24h" ? 60 : timeframe === "7d" ? 80 : 100;
+  const existing = state.chartSeries[timeframe];
+  if (!baseValue || !isFinite(baseValue)) {
+    state.chartSeries[timeframe] = null;
+    return [];
+  }
+  if (!existing || !existing.length) {
+    const s = generateSyntheticSeries(baseValue, points, timeframe);
+    state.chartSeries[timeframe] = s;
+    return s;
+  }
+  const last = existing[existing.length-1];
+  const lastV = last && isFinite(last.value) ? last.value : baseValue;
+  const factor = lastV ? baseValue / lastV : 1;
+  const scaled = existing.map(p => ({ t: p.t, value: p.value * factor }));
+  state.chartSeries[timeframe] = scaled;
+  return scaled;
+}
+function computeIndicators(series) {
+  const closes = series.map(p => p.value);
+  const n = closes.length;
+  const result = { bb: null, rsi: null, macd: null };
+  if (n < 5) return result;
+
+  const bbPeriod = 20, k = 2;
+  const upper = Array(n).fill(null);
+  const lower = Array(n).fill(null);
+  const middle = Array(n).fill(null);
+  if (n >= bbPeriod) {
+    for (let i=bbPeriod-1;i<n;i++) {
+      let sum = 0;
+      for (let j=i-bbPeriod+1;j<=i;j++) sum += closes[j];
+      const ma = sum / bbPeriod;
+      let varSum = 0;
+      for (let j=i-bbPeriod+1;j<=i;j++) {
+        const d = closes[j] - ma;
+        varSum += d*d;
+      }
+      const std = Math.sqrt(varSum / bbPeriod);
+      middle[i] = ma;
+      upper[i] = ma + k*std;
+      lower[i] = ma - k*std;
+    }
+  }
+  result.bb = { upper, lower, middle };
+
+  const rsiPeriod = 14;
+  const rsi = Array(n).fill(null);
+  if (n > rsiPeriod) {
+    let gains=0, losses=0;
+    for (let i=1;i<=rsiPeriod;i++) {
+      const diff = closes[i]-closes[i-1];
+      if (diff>=0) gains+=diff; else losses-=diff;
+    }
+    let avgGain = gains/rsiPeriod;
+    let avgLoss = losses/rsiPeriod;
+    rsi[rsiPeriod] = avgLoss===0?100:100-100/(1+avgGain/avgLoss);
+    for (let i=rsiPeriod+1;i<n;i++) {
+      const diff = closes[i]-closes[i-1];
+      const gain = diff>0?diff:0;
+      const loss = diff<0?-diff:0;
+      avgGain = (avgGain*(rsiPeriod-1)+gain)/rsiPeriod;
+      avgLoss = (avgLoss*(rsiPeriod-1)+loss)/rsiPeriod;
+      if (!avgLoss) rsi[i]=100;
+      else {
+        const rs = avgGain/avgLoss;
+        rsi[i] = 100-100/(1+rs);
+      }
+    }
+  }
+  result.rsi = rsi;
+
+  const fast=12, slow=26, signal=9;
+  if (n > slow+signal) {
+    const emaFast = Array(n).fill(null);
+    const emaSlow = Array(n).fill(null);
+    const kFast = 2/(fast+1);
+    const kSlow = 2/(slow+1);
+
+    let sumFast=0;
+    for (let i=0;i<fast;i++) sumFast+=closes[i];
+    emaFast[fast-1]=sumFast/fast;
+    for (let i=fast;i<n;i++) emaFast[i]=closes[i]*kFast+emaFast[i-1]*(1-kFast);
+
+    let sumSlow=0;
+    for (let i=0;i<slow;i++) sumSlow+=closes[i];
+    emaSlow[slow-1]=sumSlow/slow;
+    for (let i=slow;i<n;i++) emaSlow[i]=closes[i]*kSlow+emaSlow[i-1]*(1-kSlow);
+
+    const macd = Array(n).fill(null);
+    for (let i=0;i<n;i++) {
+      if (emaFast[i]!=null && emaSlow[i]!=null) macd[i]=emaFast[i]-emaSlow[i];
+    }
+
+    const signalArr = Array(n).fill(null);
+    const kSig = 2/(signal+1);
+    const firstIdx = macd.findIndex(v => v!=null);
+    if (firstIdx>=0 && n-firstIdx>=signal) {
+      let sumSig=0;
+      for (let i=firstIdx;i<firstIdx+signal;i++) sumSig+=macd[i];
+      signalArr[firstIdx+signal-1]=sumSig/signal;
+      for (let i=firstIdx+signal;i<n;i++) {
+        signalArr[i]=macd[i]*kSig+signalArr[i-1]*(1-kSig);
+      }
+    }
+    const hist = Array(n).fill(null);
+    for (let i=0;i<n;i++) if (macd[i]!=null && signalArr[i]!=null) hist[i]=macd[i]-signalArr[i];
+
+    result.macd = { macd, signal: signalArr, hist };
+  }
+  return result;
+}
+function computeSeriesMetrics(series) {
+  if (!Array.isArray(series) || series.length<2) {
+    return { annualizedReturn:NaN, volatility:NaN, sharpe:NaN, maxDrawdown:NaN };
+  }
+  const values = series.map(p=>p.value);
+  const first = values[0], last = values[values.length-1];
+  if (!first || !last) return { annualizedReturn:NaN, volatility:NaN, sharpe:NaN, maxDrawdown:NaN };
+
+  const returns = [];
+  for (let i=1;i<values.length;i++) {
+    const prev = values[i-1], curr = values[i];
+    if (prev>0 && curr>0) returns.push((curr-prev)/prev);
+  }
+  if (!returns.length)
+    return { annualizedReturn:NaN, volatility:NaN, sharpe:NaN, maxDrawdown:NaN };
+
+  const avg = returns.reduce((a,b)=>a+b,0)/returns.length;
+  const variance = returns.reduce((s,r)=>s+(r-avg)*(r-avg),0)/returns.length;
+  const volDaily = Math.sqrt(Math.max(variance,0));
+  const days = 252;
+  const annualizedReturn = Math.pow(1+avg, days)-1;
+  const annualizedVol = volDaily*Math.sqrt(days);
+  const sharpe = annualizedVol>0 ? annualizedReturn/annualizedVol : NaN;
+
+  let peak = values[0], maxDD=0;
+  for (let i=1;i<values.length;i++) {
+    const v=values[i];
+    if (v>peak) peak=v;
+    const dd=(v-peak)/peak;
+    if (dd<maxDD) maxDD=dd;
+  }
+  return { annualizedReturn, volatility:annualizedVol, sharpe, maxDrawdown:maxDD };
+}
+
+/* ---------------------- Chart drawing & TA ---------------------- */
+function drawPriceChart(canvas, series, indicators, settings) {
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+  const rect = canvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  const width = rect.width || 400;
+  const height = rect.height || 260;
+  canvas.width = width*dpr; canvas.height = height*dpr;
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,width,height);
+  chartLayout = null;
+  if (!series || !series.length) return;
+
+  const chartType = settings.chartType || "line";
+  const showBB = settings.indicators.bb;
+  const showRSI = settings.indicators.rsi;
+  const showMACD = settings.indicators.macd;
+
+  const hasIndicatorPanel = showRSI || showMACD;
+  const paddingX = 28;
+  const topPadding = 16;
+  const bottomPadding = 12;
+  const gap = hasIndicatorPanel ? 8 : 0;
+  const totalInnerH = height - topPadding - bottomPadding;
+  const mainRatio = hasIndicatorPanel ? 0.65 : 0.9;
+  const mainH = totalInnerH * mainRatio;
+  const indH = hasIndicatorPanel ? (totalInnerH - mainH - gap) : 0;
+  const mainTop = topPadding;
+  const mainBottom = mainTop + mainH;
+  const indTop = hasIndicatorPanel ? mainBottom + gap : null;
+  const indBottom = hasIndicatorPanel ? indTop + indH : null;
+  const innerW = width - paddingX*2;
+
+  const values = series.map(p=>p.value);
+  let minP = Math.min(...values), maxP = Math.max(...values);
+  if (indicators && indicators.bb && showBB) {
+    const all = [];
+    indicators.bb.upper.forEach(v=>{ if(v!=null) all.push(v); });
+    indicators.bb.lower.forEach(v=>{ if(v!=null) all.push(v); });
+    if (all.length) {
+      minP = Math.min(minP, ...all);
+      maxP = Math.max(maxP, ...all);
+    }
+  }
+  const range = maxP-minP || 1;
+
+  const ohlc = series.map((p,i)=>{
+    const close=p.value;
+    const prev=i>0?series[i-1].value:close;
+    const open=prev;
+    const mid=(open+close)/2;
+    const bodyRange=Math.max(Math.abs(close-open), mid*0.002);
+    return {open,high:mid+bodyRange*0.6,low:mid-bodyRange*0.6,close};
+  });
+
+  const points = series.map((p,i)=>{
+    const x = paddingX + (i/Math.max(series.length-1,1))*innerW;
+    const y = mainTop + (1-(p.value-minP)/range)*mainH;
+    return {x,y,value:p.value};
+  });
+
+  ctx.strokeStyle = "rgba(94,234,212,0.22)";
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4,6]);
+  ctx.beginPath();
+  ctx.moveTo(paddingX, mainBottom);
+  ctx.lineTo(width-paddingX, mainBottom);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.fillStyle = "rgba(226,232,240,0.7)";
+  ctx.font = "10px system-ui, -apple-system, BlinkMacSystemFont, sans-serif";
+  ctx.textAlign = "right"; ctx.textBaseline = "middle";
+  ctx.fillText(formatCurrency(maxP), width-4, mainTop+4);
+  ctx.fillText(formatCurrency(minP), width-4, mainBottom-4);
+
+  if (indicators && indicators.bb && showBB) {
+    const {upper,lower,middle} = indicators.bb;
+    const upPts=[], loPts=[], midPts=[];
+    upper.forEach((v,i)=>{
+      if(v==null) return;
+      const x = paddingX + (i/Math.max(series.length-1,1))*innerW;
+      const y = mainTop + (1-(v-minP)/range)*mainH;
+      upPts.push({x,y});
+    });
+    lower.forEach((v,i)=>{
+      if(v==null) return;
+      const x = paddingX + (i/Math.max(series.length-1,1))*innerW;
+      const y = mainTop + (1-(v-minP)/range)*mainH;
+      loPts.push({x,y});
+    });
+    middle.forEach((v,i)=>{
+      if(v==null) return;
+      const x = paddingX + (i/Math.max(series.length-1,1))*innerW;
+      const y = mainTop + (1-(v-minP)/range)*mainH;
+      midPts.push({x,y});
+    });
+    if (upPts.length && loPts.length) {
+      ctx.beginPath();
+      upPts.forEach((p,i)=>{ if(i===0) ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y); });
+      for (let i=loPts.length-1;i>=0;i--) ctx.lineTo(loPts[i].x, loPts[i].y);
+      ctx.closePath();
+      ctx.fillStyle = "rgba(56,189,248,0.08)";
+      ctx.fill();
+    }
+    ctx.lineWidth=1;
+    if (upPts.length) {
+      ctx.beginPath();
+      upPts.forEach((p,i)=>{ if(i===0) ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y); });
+      ctx.strokeStyle="rgba(56,189,248,0.8)";
+      ctx.stroke();
+    }
+    if (loPts.length) {
+      ctx.beginPath();
+      loPts.forEach((p,i)=>{ if(i===0) ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y); });
+      ctx.strokeStyle="rgba(56,189,248,0.8)";
+      ctx.stroke();
+    }
+    if (midPts.length) {
+      ctx.beginPath();
+      midPts.forEach((p,i)=>{ if(i===0) ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y); });
+      ctx.strokeStyle="rgba(96,165,250,0.7)";
+      ctx.setLineDash([3,3]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+
+  if (chartType === "line") {
+    const gradLine = ctx.createLinearGradient(paddingX, mainTop, paddingX, mainBottom);
+    gradLine.addColorStop(0, "rgba(56,189,248,1)");
+    gradLine.addColorStop(1, "rgba(16,185,129,1)");
+    const gradFill = ctx.createLinearGradient(0, mainTop, 0, mainBottom);
+    gradFill.addColorStop(0, "rgba(45,212,191,0.20)");
+    gradFill.addColorStop(1, "rgba(15,23,42,0)");
+    ctx.beginPath();
+    ctx.moveTo(points[0].x, mainBottom);
+    points.forEach(p=>ctx.lineTo(p.x,p.y));
+    ctx.lineTo(points[points.length-1].x, mainBottom);
+    ctx.closePath();
+    ctx.fillStyle = gradFill; ctx.fill();
+    ctx.beginPath();
+    points.forEach((p,i)=>{ if(i===0) ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y); });
+    ctx.strokeStyle = gradLine;
+    ctx.lineWidth=2; ctx.lineJoin="round"; ctx.lineCap="round"; ctx.stroke();
+  } else {
+    const barW = Math.min(14, innerW/Math.max(series.length,1)*0.7);
+    const halfBar = barW/2;
+    const wickWidth = Math.max(1, barW*0.3);
+    ohlc.forEach((bar,i)=>{
+      const x = paddingX + (i/Math.max(series.length-1,1))*innerW;
+      const openY = mainTop + (1-(bar.open-minP)/range)*mainH;
+      const closeY= mainTop + (1-(bar.close-minP)/range)*mainH;
+      const highY = mainTop + (1-(bar.high-minP)/range)*mainH;
+      const lowY  = mainTop + (1-(bar.low-minP)/range)*mainH;
+      const isUp = bar.close >= bar.open;
+      const color = isUp ? "rgba(34,197,94,0.95)" : "rgba(248,113,113,0.95)";
+      ctx.beginPath();
+      ctx.moveTo(x, highY); ctx.lineTo(x, lowY);
+      ctx.strokeStyle=color; ctx.lineWidth=wickWidth; ctx.stroke();
+      if (chartType === "candles") {
+        const topY = Math.min(openY, closeY);
+        const h = Math.max(1, Math.abs(closeY-openY));
+        ctx.beginPath();
+        ctx.rect(x-halfBar, topY, barW, h);
+        ctx.fillStyle=color; ctx.fill();
+      } else {
+        ctx.beginPath();
+        ctx.moveTo(x-halfBar, openY); ctx.lineTo(x, openY);
+        ctx.moveTo(x, closeY); ctx.lineTo(x+halfBar, closeY);
+        ctx.strokeStyle=color; ctx.lineWidth=1; ctx.stroke();
+      }
+    });
+  }
+
+  const draw = settings.drawing || {};
+  const trendlines = draw.trendlines || [];
+  const fibs = draw.fibs || [];
+  ctx.lineWidth=1;
+
+  trendlines.forEach(line=>{
+    if (!line.p1 || !line.p2) return;
+    const x1 = paddingX + line.p1.xNorm*innerW;
+    const y1 = mainTop + line.p1.yNorm*mainH;
+    const x2 = paddingX + line.p2.xNorm*innerW;
+    const y2 = mainTop + line.p2.yNorm*mainH;
+    ctx.beginPath();
+    ctx.moveTo(x1,y1); ctx.lineTo(x2,y2);
+    ctx.strokeStyle="rgba(248,250,252,0.85)";
+    ctx.setLineDash([4,2]); ctx.stroke(); ctx.setLineDash([]);
+  });
+
+  fibs.forEach(fib=>{
+    if (!fib.top || !fib.bottom) return;
+    const y1 = mainTop + fib.top.yNorm*mainH;
+    const y2 = mainTop + fib.bottom.yNorm*mainH;
+    const hi = Math.min(y1,y2), lo=Math.max(y1,y2);
+    const levels=[0,0.236,0.382,0.5,0.618,0.786,1];
+    ctx.font="9px system-ui,-apple-system,BlinkMacSystemFont,sans-serif";
+    ctx.textAlign="left"; ctx.textBaseline="middle";
+    levels.forEach(lvl=>{
+      const y = hi + (lo-hi)*lvl;
+      ctx.beginPath();
+      ctx.moveTo(paddingX,y); ctx.lineTo(width-paddingX,y);
+      ctx.strokeStyle="rgba(250,250,250,0.35)";
+      ctx.setLineDash([3,3]); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle="rgba(148,163,184,0.9)";
+      ctx.fillText((lvl*100).toFixed(1)+"%", paddingX+2, y-1);
+    });
+  });
+
+  if (hasIndicatorPanel && indH>20 && indTop!=null) {
+    const it = indTop, ib=indBottom, ih=indH;
+    ctx.strokeStyle="rgba(30,64,175,0.5)";
+    ctx.lineWidth=1; ctx.setLineDash([4,6]);
+    ctx.beginPath(); ctx.moveTo(paddingX,ib); ctx.lineTo(width-paddingX,ib); ctx.stroke(); ctx.setLineDash([]);
+
+    if (showRSI && indicators && indicators.rsi) {
+      const rsi = indicators.rsi;
+      const pts=[];
+      rsi.forEach((v,i)=>{
+        if(v==null) return;
+        const x = paddingX + (i/Math.max(series.length-1,1))*innerW;
+        const y = it + (1-v/100)*ih;
+        pts.push({x,y});
+      });
+      const y70 = it + (1-70/100)*ih;
+      const y30 = it + (1-30/100)*ih;
+      ctx.fillStyle="rgba(15,23,42,0.8)";
+      ctx.fillRect(paddingX,y70,innerW,y30-y70);
+      ctx.beginPath(); ctx.moveTo(paddingX,y70); ctx.lineTo(width-paddingX,y70);
+      ctx.moveTo(paddingX,y30); ctx.lineTo(width-paddingX,y30);
+      ctx.strokeStyle="rgba(148,163,184,0.6)";
+      ctx.setLineDash([2,3]); ctx.stroke(); ctx.setLineDash([]);
+      if (pts.length) {
+        ctx.beginPath();
+        pts.forEach((p,i)=>{ if(i===0) ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y); });
+        ctx.strokeStyle="rgba(244,114,182,0.9)";
+        ctx.lineWidth=1.3; ctx.stroke();
+      }
+    }
+
+    if (showMACD && indicators && indicators.macd) {
+      const {macd,signal,hist} = indicators.macd;
+      const macdVals=[], histVals=[];
+      macd.forEach(v=>{ if(v!=null) macdVals.push(v); });
+      hist.forEach(v=>{ if(v!=null) histVals.push(v); });
+      if (macdVals.length && histVals.length) {
+        const minM = Math.min(...macdVals,...histVals);
+        const maxM = Math.max(...macdVals,...histVals);
+        const rangeM = maxM-minM || 1;
+        for (let i=0;i<hist.length;i++) {
+          const v = hist[i]; if(v==null) continue;
+          const x = paddingX + (i/Math.max(series.length-1,1))*innerW;
+          const y0 = it + (1-(-minM/rangeM))*ih;
+          const yv = it + (1-(v-minM)/rangeM)*ih;
+          ctx.beginPath(); ctx.moveTo(x,y0); ctx.lineTo(x,yv);
+          ctx.strokeStyle = v>=0 ? "rgba(34,197,94,0.8)" : "rgba(248,113,113,0.8)";
+          ctx.lineWidth=2; ctx.stroke();
+        }
+        const macdPts=[], sigPts=[];
+        macd.forEach((v,i)=>{
+          if(v==null) return;
+          const x = paddingX + (i/Math.max(series.length-1,1))*innerW;
+          const y = it + (1-(v-minM)/rangeM)*ih;
+          macdPts.push({x,y});
+        });
+        signal.forEach((v,i)=>{
+          if(v==null) return;
+          const x = paddingX + (i/Math.max(series.length-1,1))*innerW;
+          const y = it + (1-(v-minM)/rangeM)*ih;
+          sigPts.push({x,y});
+        });
+        if (macdPts.length) {
+          ctx.beginPath();
+          macdPts.forEach((p,i)=>{ if(i===0) ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y); });
+          ctx.strokeStyle="rgba(56,189,248,0.9)";
+          ctx.lineWidth=1.4; ctx.stroke();
+        }
+        if (sigPts.length) {
+          ctx.beginPath();
+          sigPts.forEach((p,i)=>{ if(i===0) ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y); });
+          ctx.strokeStyle="rgba(148,163,184,0.9)";
+          ctx.lineWidth=1; ctx.stroke();
+        }
+      }
+    }
+    ctx.fillStyle="rgba(148,163,184,0.9)";
+    ctx.font="9px system-ui,-apple-system,BlinkMacSystemFont,sans-serif";
+    ctx.textAlign="left"; ctx.textBaseline="top";
+    const tags=[];
+    if (showRSI) tags.push("RSI(14)");
+    if (showMACD) tags.push("MACD(12,26,9)");
+    ctx.fillText(tags.join(" · "), paddingX, indTop+2);
+  }
+
+  chartLayout = {
+    width, height,
+    paddingX,
+    mainTop, mainHeight: mainH, mainBottom,
+    innerWidth: innerW
+  };
+}
+
+function computeIndexReturnsFromDaily(closes) {
+  if (!closes || closes.length < 30) return { month: NaN, quarter: NaN, year: NaN };
+  const lastIdx = closes.length - 1;
+  const idx1M = Math.max(0, lastIdx - 22);
+  const idx3M = Math.max(0, lastIdx - 66);
+  const idx1Y = Math.max(0, lastIdx - 252);
+  const last  = closes[lastIdx];
+  const p1M   = closes[idx1M];
+  const p3M   = closes[idx3M];
+  const p1Y   = closes[idx1Y];
+  function ret(past) { if (!past || !last) return NaN; return last / past - 1; }
+  return { month: ret(p1M), quarter: ret(p3M), year: ret(p1Y) };
+}
+
+async function fetchIndexDailyAlphaVantage(symbol, apiKey) {
+  const url = `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY_ADJUSTED&symbol=${encodeURIComponent(symbol)}&outputsize=compact&apikey=${encodeURIComponent(apiKey)}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Alpha Vantage error ${res.status}`);
+  const json = await res.json();
+  const series = json["Time Series (Daily)"];
+  if (!series) throw new Error("Unexpected Alpha Vantage payload");
+  const dates = Object.keys(series).map(d => new Date(d)).sort((a, b) => a - b);
+  return dates.map(d => {
+    const key = d.toISOString().slice(0, 10);
+    return parseFloat(series[key]["4. close"]);
+  }).filter(v => isFinite(v));
+}
+
+async function fetchBenchmarks() {
+  // Cached logic to prevent 429s
+  const cached = loadJson(STORAGE_KEYS.benchmarks, null);
+  const now = Date.now();
+  if (cached && (now - cached.timestamp < 12 * 60 * 60 * 1000)) {
+    BENCHMARK_RETURNS.month = cached.month;
+    BENCHMARK_RETURNS.quarter = cached.quarter;
+    BENCHMARK_RETURNS.year = cached.year;
+    BENCHMARK_RETURNS.hasLive = true;
+    const data = state.lastPortfolioData || calculatePortfolio(state.portfolio, state.priceData);
+    renderBenchmarksAndScenario(data);
+    return;
+  }
+
+  const API_KEY = "14FXYP264JB2XC5F"; 
+  try {
+    const spyCloses = await fetchIndexDailyAlphaVantage("SPY", API_KEY);
+    await new Promise(r => setTimeout(r, 1500)); // Rate limit niceness
+    const qqqCloses = await fetchIndexDailyAlphaVantage("QQQ", API_KEY);
+
+    const spRet  = computeIndexReturnsFromDaily(spyCloses);
+    const ndqRet = computeIndexReturnsFromDaily(qqqCloses);
+
+    const newData = {
+        timestamp: now,
+        month: { sp: spRet.month, nasdaq: ndqRet.month },
+        quarter: { sp: spRet.quarter, nasdaq: ndqRet.quarter },
+        year: { sp: spRet.year, nasdaq: ndqRet.year }
+    };
+
+    if (!isNaN(spRet.month)) {
+      BENCHMARK_RETURNS.month = newData.month;
+      BENCHMARK_RETURNS.quarter = newData.quarter;
+      BENCHMARK_RETURNS.year = newData.year;
+      BENCHMARK_RETURNS.hasLive = true;
+      saveJson(STORAGE_KEYS.benchmarks, newData);
+      
+      const data = state.lastPortfolioData || calculatePortfolio(state.portfolio, state.priceData);
+      renderBenchmarksAndScenario(data);
+    }
+  } catch (err) {
+    console.warn("Benchmarks unavailable (rate limit or network), using defaults.");
+    // Silent fallback
+  }
+}
+
+/* ---------------------- Sentiment ---------------------- */
+async function fetchSentiment() {
+  try {
+    const fngRes = await fetch("https://api.alternative.me/fng/?limit=1");
+    if (fngRes.ok) {
+      const json = await fngRes.json();
+      const data = json.data[0];
+      if (el.fngValue) el.fngValue.textContent = data.value;
+      if (el.fngLabel) el.fngLabel.textContent = data.value_classification;
+      if (el.fngBar) {
+        el.fngBar.style.width = data.value + "%";
+        el.fngBar.className = `h-full transition-all duration-500 ${
+          data.value < 25 ? "bg-rose-500" : data.value < 50 ? "bg-orange-400" : data.value < 75 ? "bg-emerald-400" : "bg-emerald-500"
+        }`;
+      }
+    }
+    const globRes = await fetch("https://api.coingecko.com/api/v3/global");
+    if (globRes.ok) {
+      const json = await globRes.json();
+      const btc = json.data.market_cap_percentage.btc;
+      const eth = json.data.market_cap_percentage.eth;
+      const mcap = json.data.total_market_cap.usd;
+      
+      if (el.btcDom) el.btcDom.textContent = btc.toFixed(1) + "%";
+      if (el.globalMcap) el.globalMcap.textContent = "$" + (mcap / 1e12).toFixed(2) + "T";
+
+      if (el.altMcap) {
+         const altShare = 100 - btc - (eth || 0);
+         const altVal = mcap * (altShare / 100);
+         el.altMcap.textContent = "$" + (altVal / 1e12).toFixed(2) + "T";
+      }
+      
+      if (el.altSeason) {
+        const altIndex = Math.max(0, Math.min(100, (60 - btc) * 3.5));
+        el.altSeason.textContent = altIndex.toFixed(0);
+        el.altSeason.classList.remove("text-emerald-400", "font-bold", "text-slate-200");
+        el.altSeason.classList.add("font-mono");
+        if (altIndex > 75) {
+            el.altSeason.classList.add("text-emerald-400", "font-bold");
+        } else {
+            el.altSeason.classList.add("text-slate-200");
+        }
+      }
+    }
+  } catch (e) { console.log("Sentiment fetch failed", e); }
+}
+
+/* ---------------------- Backtesting ---------------------- */
+async function fetchHistoricalPrices(ids, days) {
+  const currency = state.currency || "usd";
+  const result = {};
+  const cacheKey = `${days}-${currency}`;
+
+  for (const id of ids) {
+    if (!id) continue;
+    const cached = state.priceHistory[id]?.[cacheKey];
+    if (cached) {
+      result[id] = cached;
+      continue;
+    }
+    const url = `https://api.coingecko.com/api/v3/coins/${id}/market_chart?vs_currency=${currency}&days=${days}&interval=daily`;
+    try {
+      const res = await fetchWithRetries(url, {}, 3, 700);
+      const json = await res.json();
+      if (!Array.isArray(json.prices)) continue;
+      result[id] = json.prices;
+      state.priceHistory[id] = state.priceHistory[id] || {};
+      state.priceHistory[id][cacheKey] = json.prices;
+    } catch (err) {
+      console.warn(`Failed to fetch history for ${id}:`, err);
+      // Don't explode the whole backtest on one bad asset; continue with others.
+    }
+  }
+
+  return result;
+}
+
+async function runBacktest() {
+  if (!el.btResults || !state.lastPortfolioData) return;
+  el.btResults.classList.remove("hidden");
+
+  const strategy = el.btStrategy.value;
+  const days = parseInt(el.btPeriod.value);
+  const portfolio = state.lastPortfolioData;
+  const holdings = (portfolio.holdings || []).filter(h => h.value > 0);
+  if (!holdings.length) {
+    showToast("Add holdings to run a backtest.", "warn");
+    return;
+  }
+
+  if (el.btRunBtn) {
+    el.btRunBtn.disabled = true;
+    el.btRunBtn.textContent = "Running…";
+  }
+
+  try {
+    const ids = holdings.map(h => h.id);
+    const history = await fetchHistoricalPrices(ids, days + 1);
+    if (!Object.keys(history).length) {
+      showToast("Historical prices unavailable.", "error");
+      return;
+    }
+
+    const weights = holdings.map(h => h.value / portfolio.totals.totalValue);
+    const series = holdings.map(h => history[h.id] || []);
+    const minLen = Math.min(...series.map(s => s.length));
+    if (!isFinite(minLen) || minLen < 2) {
+      showToast("Not enough history to backtest.", "warn");
+      return;
+    }
+
+    const startValue = 10000;
+    const pricePath = [];
+    for (let i = 0; i < minLen; i++) {
+      let valueNorm = 0;
+      series.forEach((s, idx) => {
+        const start = s[0][1];
+        const price = s[i][1];
+        valueNorm += weights[idx] * (price / start);
+      });
+      pricePath.push(startValue * valueNorm);
+    }
+
+    const equityCurve = [startValue];
+    let cash = startValue;
+    let invested = 0;
+
+    function calcSMA(arr, period, idx) {
+      if (idx < period) return null;
+      let sum=0; for(let k=0; k<period; k++) sum+=arr[idx-k];
+      return sum/period;
+    }
+
+    for (let i=0; i<pricePath.length; i++) {
+      const price = pricePath[i];
+
+      const fast = calcSMA(pricePath, 20, i);
+      const slow = calcSMA(pricePath, 50, i);
+      let rsiVal = 50;
+      if (i > 14) {
+         let gains=0, losses=0;
+         for(let k=0; k<14; k++) {
+           const d = pricePath[i-k] - pricePath[i-k-1];
+           if (d>0) gains+=d; else if (d<0) losses-=d;
+         }
+         if (losses === 0) rsiVal = 100;
+         else rsiVal = 100 - 100/(1+(gains/losses));
+      }
+
+      let action = "hold";
+      if (strategy === "hold") {
+        if (i===0) action = "buy";
+      } else if (strategy === "sma_cross") {
+        if (fast && slow) {
+          if (fast > slow && invested === 0) action = "buy";
+          if (fast < slow && invested > 0) action = "sell";
+        }
+      } else if (strategy === "rsi_strat") {
+        if (rsiVal < 30 && invested === 0) action = "buy";
+        if (rsiVal > 70 && invested > 0) action = "sell";
+      } else if (strategy === "bollinger") {
+        if (fast) {
+           if (price > fast*1.05 && invested === 0) action = "buy";
+           if (price < fast*0.95 && invested > 0) action = "sell";
+        }
+      }
+
+      if (action === "buy") {
+        invested = cash / price;
+        cash = 0;
+      } else if (action === "sell") {
+        cash = invested * price;
+        invested = 0;
+      }
+
+      const curVal = cash + (invested * price);
+      equityCurve.push(curVal);
+    }
+
+    const returns = [];
+    let peak = equityCurve[0];
+    let maxDD = 0;
+    let downsideSum = 0;
+
+    for(let i=1; i<equityCurve.length; i++) {
+      const r = (equityCurve[i] - equityCurve[i-1]) / equityCurve[i-1];
+      returns.push(r);
+
+      if (equityCurve[i] > peak) peak = equityCurve[i];
+      const dd = (peak - equityCurve[i]) / peak;
+      if (dd > maxDD) maxDD = dd;
+
+      if (r < 0) downsideSum += r*r;
+    }
+
+    const avgRet = returns.reduce((a,b)=>a+b,0)/returns.length;
+    const stdDev = Math.sqrt(returns.reduce((s,r)=>s+(r-avgRet)**2, 0)/returns.length);
+    const downDev = Math.sqrt(downsideSum / returns.length);
+    const annRet = avgRet * 365;
+    const annVol = stdDev * Math.sqrt(365);
+    const riskFree = 0.02;
+
+    const sharpe = annVol > 0 ? (annRet - riskFree) / annVol : 0;
+    const sortino = downDev > 0 ? (annRet - riskFree) / (downDev * Math.sqrt(365)) : 0;
+
+    if (el.btSharpe) el.btSharpe.textContent = sharpe.toFixed(2);
+    if (el.btSortino) el.btSortino.textContent = sortino.toFixed(2);
+    if (el.btMaxDD) el.btMaxDD.textContent = "-" + (maxDD*100).toFixed(1) + "%";
+
+    updateTrendClass(el.btSharpe, sharpe);
+    updateTrendClass(el.btSortino, sortino);
+
+    drawBacktestChart(el.btChart, pricePath, equityCurve);
+  } catch (err) {
+    console.warn(err);
+    showToast("Backtest failed. Please retry.", "error");
+  } finally {
+    if (el.btRunBtn) {
+      el.btRunBtn.disabled = false;
+      el.btRunBtn.textContent = "Run backtest";
+    }
+  }
+}
+
+function drawBacktestChart(canvas, buyHold, strategy) {
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, rect.width, rect.height);
+  
+  const pad = 4;
+  const w = rect.width - pad*2;
+  const h = rect.height - pad*2;
+  
+  const all = [...buyHold, ...strategy];
+  const min = Math.min(...all);
+  const max = Math.max(...all);
+  const range = max - min || 1;
+  
+  function plot(data, color, dash=[]) {
+    ctx.beginPath();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash(dash);
+    data.forEach((v, i) => {
+      const x = pad + (i / (data.length - 1)) * w;
+      const y = pad + h - ((v - min) / range) * h;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  
+  plot(buyHold, "rgba(148,163,184,0.5)", [3,3]);
+  plot(strategy, "rgba(129,140,248,1)");
+}
+
+/* ---------------------- Price fetching ---------------------- */
+async function fetchWithRetries(url, options = {}, attempts = 3, backoffMs = 500) {
+  let lastErr = null;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      const headers = options.headers ? { ...options.headers } : {};
+      if (state.cgApiKey) headers["x-cg-demo-api-key"] = state.cgApiKey;
+      const res = await fetch(url, { ...options, headers });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res;
+    } catch (err) {
+      lastErr = err;
+      await new Promise(r => setTimeout(r, backoffMs * Math.pow(2, i)));
+    }
+  }
+  throw lastErr || new Error("Request failed");
+}
+
+function updatePriceStaleness(success) {
+  if (success) {
+    state.lastPriceSuccess = Date.now();
+    if (el.priceStale) el.priceStale.classList.add("hidden");
+    if (el.refreshDot) {
+      el.refreshDot.classList.remove("bg-amber-400","shadow-[0_0_10px_rgba(251,191,36,0.9)]");
+      el.refreshDot.classList.add("bg-emerald-400","shadow-[0_0_14px_rgba(16,185,129,0.95)]");
+    }
+    return;
+  }
+  if (!state.lastPriceSuccess) {
+    if (el.priceStale) el.priceStale.textContent = "No data";
+    if (el.priceStale) el.priceStale.classList.remove("hidden");
+    if (el.refreshDot) {
+      el.refreshDot.classList.remove("bg-emerald-400","shadow-[0_0_14px_rgba(16,185,129,0.95)]");
+      el.refreshDot.classList.add("bg-amber-400","shadow-[0_0_10px_rgba(251,191,36,0.9)]");
+    }
+    return;
+  }
+  if (el.priceStale) {
+    const time = new Date(state.lastPriceSuccess).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    el.priceStale.textContent = `Stale since ${time}`;
+    el.priceStale.classList.remove("hidden");
+  }
+  if (el.refreshDot) {
+    el.refreshDot.classList.remove("bg-emerald-400","shadow-[0_0_14px_rgba(16,185,129,0.95)]");
+    el.refreshDot.classList.add("bg-amber-400","shadow-[0_0_10px_rgba(251,191,36,0.9)]");
+  }
+}
+
+async function refreshPrices(opts={light:false}) {
+  try {
+    if (el.refreshBtn) el.refreshBtn.disabled=true;
+    if (el.priceStatus) el.priceStatus.textContent="Refreshing…";
+    if (el.refreshDot) el.refreshDot.classList.add("bg-emerald-300","animate-pulse");
+    const idsSet = new Set();
+    state.portfolio.forEach(h=>idsSet.add(h.id));
+    state.watchlist.forEach(id=>idsSet.add(id));
+    state.alerts.forEach(a=>idsSet.add(a.coinId));
+    const ids = Array.from(idsSet).filter(Boolean);
+    
+    if (!ids.length) {
+      state.priceData = {};
+      const now = new Date();
+      if (el.lastUpdated) el.lastUpdated.textContent = now.toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"});
+      if (el.priceStatus) el.priceStatus.textContent="No assets";
+      const data = calculatePortfolio(state.portfolio, state.priceData);
+      state.lastPortfolioData = data;
+      renderAll();
+      return;
+    }
+
+    const vsCurrencies = Object.keys(CURRENCY_CONFIG).join(",");
+    const url = `https://api.coingecko.com/api/v3/simple/price?vs_currencies=${vsCurrencies}&include_24hr_change=true&ids=`+ids.map(encodeURIComponent).join(",");
+    
+    const res = await fetchWithRetries(url, {}, 3, 600);
+    const data = await res.json();
+    
+    if (data.tether) {
+      const t = data.tether;
+      const usdVal = t.usd || 1;
+      Object.keys(CURRENCY_CONFIG).forEach(k => {
+         if (t[k]) state.fxRates[k] = t[k] / usdVal;
+      });
+      // Save FX to local storage so it doesn't reset on reload
+      saveJson(STORAGE_KEYS.fx, state.fxRates);
+    }
+    
+    state.priceData = data || {};
+    const now = new Date();
+    state.lastPriceSuccess = now.getTime();
+    if (el.lastUpdated) el.lastUpdated.textContent = now.toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"});
+    if (el.priceStatus) el.priceStatus.textContent="Live prices";
+    updatePriceStaleness(true);
+    const portfolioData = calculatePortfolio(state.portfolio,state.priceData);
+    state.lastPortfolioData=portfolioData;
+    renderAll();
+    checkAlerts();
+  } catch (err) {
+    console.warn(err);
+    if (el.priceStatus) el.priceStatus.textContent="Price error";
+    showToast("Could not refresh prices. Try again shortly.","error");
+    updatePriceStaleness(false);
+  } finally {
+    if (el.refreshBtn) el.refreshBtn.disabled=false;
+    if (el.refreshDot) el.refreshDot.classList.remove("animate-pulse");
+  }
+}
+
+/* ---------------------- Rendering helpers ---------------------- */
+function renderSummary(data) {
+  if (!data || !data.totals) return;
+  const { totals, best, worst } = data;
+  const updateSpark = (node, change) => {
+    if (!node) return;
+    const tilt = clamp(change || 0, -25, 25);
+    node.style.setProperty("--spark-tilt", `${tilt}deg`);
+    node.classList.toggle("negative", change < 0);
+  };
+  el.totalValue.textContent = formatCurrency(totals.totalValue);
+  el.totalCost.textContent = formatCurrency(totals.totalCost);
+  el.totalPnl.textContent = formatCurrency(totals.totalPnlAbs);
+  el.totalPnlPct.textContent = Number.isFinite(totals.totalPnlPct)
+    ? formatPercent(totals.totalPnlPct)
+    : "--";
+  updateTrendClass(el.totalPnl, totals.totalPnlAbs);
+  updateTrendClass(el.totalPnlPct, totals.totalPnlPct);
+  el.assetsCount.textContent = data.holdings.length;
+  el.dayPnl.textContent = formatCurrency(totals.dayChangeAbs);
+  el.dayPnlPct.textContent = formatPercent(totals.dayChangePct);
+  updateTrendClass(el.dayPnl, totals.dayChangeAbs);
+  updateTrendClass(el.dayPnlPct, totals.dayChangePct);
+  updateSpark(el.daySpark, totals.dayChangePct);
+  el.bestName.textContent = best ? `${best.symbol} · ${best.name}` : "--";
+  el.bestChange.textContent = best ? formatPercent(best.change24hPct) : "--";
+  el.worstName.textContent = worst ? `${worst.symbol} · ${worst.name}` : "--";
+  el.worstChange.textContent = worst ? formatPercent(worst.change24hPct) : "--";
+  updateTrendClass(el.bestChange, best ? best.change24hPct : 0);
+  updateTrendClass(el.worstChange, worst ? worst.change24hPct : 0);
+  updateSpark(el.bestSpark, best ? best.change24hPct : 0);
+  updateSpark(el.worstSpark, worst ? worst.change24hPct : 0);
+}
+
+function renderHoldings(data) {
+  const holdings = data.holdings || [];
+  el.holdingsBody.innerHTML = "";
+  if (el.holdingsCards) el.holdingsCards.innerHTML = "";
+  if (!holdings.length) {
+    el.noHoldings.classList.remove("hidden");
+    return;
+  }
+  el.noHoldings.classList.add("hidden");
+  holdings.forEach(h => {
+    const alloc = clamp((h.allocationPct || 0) / 100, 0, 1) * 100;
+    const allocColor = h.pnlAbs >= 0 ? "#34d399" : "#fb7185";
+    const tr = document.createElement("tr");
+    tr.className = "bg-slate-900/40 hover:bg-slate-900/80 transition rounded-xl";
+    tr.innerHTML = `
+      <td class="px-3 py-2">
+        <div class="flex flex-col">
+          <span class="font-semibold">${escapeHtml(h.symbol)}</span>
+          <span class="text-[11px] text-slate-400">${escapeHtml(h.name)}</span>
+        </div>
+      </td>
+      <td class="px-3 py-2 text-right font-mono">${h.amount.toFixed(6).replace(/\.0+$/, "")}</td>
+      <td class="px-3 py-2 text-right font-mono">${formatCurrency(h.price)}</td>
+      <td class="px-3 py-2 text-right font-mono">${formatCurrency(h.value)}</td>
+      <td class="px-3 py-2 text-right font-mono ${h.pnlAbs>=0?"text-emerald-400":"text-rose-400"}">${formatCurrency(h.pnlAbs)}<br><span class="text-[11px] text-slate-400">${formatPercent(h.pnlPct)}</span></td>
+      <td class="px-3 py-2 text-right">
+        <div class="flex items-center justify-end gap-2">
+          <div class="alloc-pie" style="--alloc:${alloc}; --alloc-color:${allocColor};"></div>
+          <span class="font-mono text-xs sm:text-sm">${formatPercent(h.allocationPct)}</span>
+        </div>
+      </td>
+      <td class="px-3 py-2 text-right">
+        <div class="inline-flex gap-1">
+          <button data-action="edit" data-id="${escapeHtml(h.id)}" class="px-2 py-1 text-[11px] rounded-full border border-slate-700 text-slate-200 hover:border-emerald-400">Edit</button>
+          <button data-action="delete" data-id="${escapeHtml(h.id)}" class="px-2 py-1 text-[11px] rounded-full border border-slate-700 text-slate-300 hover:border-rose-400">Remove</button>
+        </div>
+      </td>`;
+    el.holdingsBody.appendChild(tr);
+
+    if (el.holdingsCards) {
+      const card = document.createElement("div");
+      card.className = "rounded-xl border border-slate-800 bg-slate-900/80 p-3 shadow-sm shadow-emerald-500/5";
+      card.innerHTML = `
+        <div class="flex items-center justify-between gap-2">
+          <div>
+            <p class="text-sm font-semibold">${escapeHtml(h.symbol)}</p>
+            <p class="text-[11px] text-slate-400">${escapeHtml(h.name)}</p>
+          </div>
+          <div class="text-right">
+            <p class="font-mono text-xs text-slate-300">${formatCurrency(h.price)}</p>
+            <p class="text-[11px] text-slate-500">Live price</p>
+          </div>
+        </div>
+        <div class="mt-3 grid grid-cols-2 gap-2 text-[11px] text-slate-300">
+          <div class="rounded-lg bg-slate-950/60 border border-slate-800/70 p-2">
+            <p class="uppercase tracking-[0.18em] text-[9px] text-slate-500 mb-0.5">Amount</p>
+            <p class="font-mono">${h.amount.toFixed(6).replace(/\.0+$/, "")}</p>
+          </div>
+          <div class="rounded-lg bg-slate-950/60 border border-slate-800/70 p-2 text-right">
+            <p class="uppercase tracking-[0.18em] text-[9px] text-slate-500 mb-0.5">Value</p>
+            <p class="font-mono">${formatCurrency(h.value)}</p>
+          </div>
+          <div class="rounded-lg bg-slate-950/60 border border-slate-800/70 p-2">
+            <p class="uppercase tracking-[0.18em] text-[9px] text-slate-500 mb-0.5">P/L</p>
+            <p class="font-mono ${h.pnlAbs>=0?"text-emerald-400":"text-rose-400"}">${formatCurrency(h.pnlAbs)}</p>
+            <p class="font-mono text-[10px] text-slate-400">${formatPercent(h.pnlPct)}</p>
+          </div>
+          <div class="rounded-lg bg-slate-950/60 border border-slate-800/70 p-2 text-right">
+            <p class="uppercase tracking-[0.18em] text-[9px] text-slate-500 mb-0.5">Alloc</p>
+            <div class="flex items-center justify-end gap-2">
+              <div class="alloc-pie" style="--alloc:${alloc}; --alloc-color:${allocColor};"></div>
+              <p class="font-mono">${formatPercent(h.allocationPct)}</p>
+            </div>
+          </div>
+        </div>
+        <div class="mt-3 flex items-center justify-between text-[11px]">
+          <button data-action="edit" data-id="${escapeHtml(h.id)}" class="inline-flex items-center gap-1 rounded-full border border-slate-700 px-3 py-1.5 text-slate-200 hover:border-emerald-400">Edit</button>
+          <button data-action="delete" data-id="${escapeHtml(h.id)}" class="inline-flex items-center gap-1 rounded-full border border-slate-700 px-3 py-1.5 text-slate-300 hover:border-rose-400">Remove</button>
+        </div>`;
+      el.holdingsCards.appendChild(card);
+    }
+  });
+}
+
+function renderAllocationMini(data) {
+  const holdings = data.holdings || [];
+  el.allocationList.innerHTML = "";
+  if (!holdings.length) {
+    el.allocationEmpty.classList.remove("hidden");
+    return;
+  }
+  el.allocationEmpty.classList.add("hidden");
+  holdings.forEach(h => {
+    const row = document.createElement("div");
+    row.innerHTML = `
+      <div class="flex items-center justify-between text-xs">
+        <span class="font-semibold">${escapeHtml(h.symbol)}</span>
+        <span class="font-mono text-slate-300">${formatPercent(h.allocationPct)}</span>
+      </div>
+      <div class="mt-1 h-2 rounded-full bg-slate-800 overflow-hidden">
+        <div class="h-full rounded-full ${h.pnlAbs>=0?"bg-emerald-400":"bg-rose-400"}" style="width:${Math.min(100,h.allocationPct)}%"></div>
+      </div>`;
+    el.allocationList.appendChild(row);
+  });
+}
+
+function renderWallets() {
+  el.walletList.innerHTML = "";
+  if (!state.wallets.length) {
+    el.walletEmpty.classList.remove("hidden");
+    return;
+  }
+  el.walletEmpty.classList.add("hidden");
+  state.wallets.forEach(w => {
+    const li = document.createElement("li");
+    li.className = "rounded-xl border border-slate-800 bg-slate-900/50 px-3 py-2 flex flex-col gap-2";
+    const explorer = getExplorerUrl(w.chain || "ethereum", w.address);
+    const chainLabel = describeChain(w.chain || "ethereum");
+    li.innerHTML = `
+      <div class="flex items-center justify-between gap-2">
+        <div>
+          <p class="font-semibold">${escapeHtml(w.label || shortenAddress(w.address))}</p>
+          <p class="text-[11px] text-slate-500">${escapeHtml(shortenAddress(w.address))} · ${escapeHtml(chainLabel)}</p>
+        </div>
+        <button data-id="${escapeHtml(w.id)}" class="wallet-remove text-[11px] text-slate-400 hover:text-rose-400">Remove</button>
+      </div>
+      <div class="flex items-center justify-between text-[11px] text-slate-400">
+        <span>Added ${humanizeTimeAgo(w.addedAt)}</span>
+        <a href="${explorer}" target="_blank" rel="noopener" class="text-emerald-300 hover:text-emerald-200">View explorer →</a>
+      </div>`;
+    el.walletList.appendChild(li);
+  });
+}
+
+function renderWatchlist() {
+  el.watchlistList.innerHTML = "";
+  if (!state.watchlist.length) {
+    el.watchlistEmpty.classList.remove("hidden");
+    return;
+  }
+  el.watchlistEmpty.classList.add("hidden");
+  state.watchlist.forEach(id => {
+    const meta = findCoinMeta(id) || { symbol: id.toUpperCase(), name: id };
+    const price = getDisplayPrice(id);
+    const change = getDisplayChange(id);
+    const changeClass = Number.isFinite(change)
+      ? (change >= 0 ? "text-emerald-400" : "text-rose-400")
+      : "text-slate-400";
+    const li = document.createElement("li");
+    li.className = "rounded-xl border border-slate-800 bg-slate-900/50 px-3 py-2 flex items-center justify-between gap-3";
+    li.innerHTML = `
+      <div>
+        <p class="font-semibold">${escapeHtml(meta.symbol)}</p>
+        <p class="text-[11px] text-slate-500">${escapeHtml(meta.name)}</p>
+      </div>
+      <div class="text-right">
+        <p class="font-mono">${price!=null?formatCurrency(price):"--"}</p>
+        <p class="text-[11px] ${changeClass}">${change!=null?formatPercent(change):"--"}</p>
+      </div>
+      <button data-id="${escapeHtml(id)}" class="watchlist-remove text-[11px] text-slate-400 hover:text-rose-400">Remove</button>`;
+    el.watchlistList.appendChild(li);
+  });
+}
+
+function renderChartSection(data) {
+  const totals = data?.totals || {};
+  const series = totals.totalValue ? ensureChartSeries(state.timeframe, totals.totalValue) : [];
+  const indicators = computeIndicators(series);
+  if (!series.length) {
+    if (el.chartEmpty) el.chartEmpty.classList.remove("hidden");
+    if (el.chartCanvas) {
+      const ctx = el.chartCanvas.getContext("2d");
+      ctx && ctx.clearRect(0,0,el.chartCanvas.width, el.chartCanvas.height);
+    }
+  } else {
+    el.chartEmpty.classList.add("hidden");
+    drawPriceChart(el.chartCanvas, series, indicators, state.chartSettings);
+  }
+  document.querySelectorAll(".timeframe-btn").forEach(btn => {
+    if (btn.dataset.timeframe === state.timeframe) {
+      btn.classList.add("pill-active","text-slate-100");
+    } else {
+      btn.classList.remove("pill-active","text-slate-100");
+      btn.classList.add("text-slate-400");
+    }
+  });
+  document.querySelectorAll(".chart-type-btn").forEach(btn => {
+    if (btn.dataset.chartType === state.chartSettings.chartType) {
+      btn.classList.add("pill-active","text-slate-100");
+    } else {
+      btn.classList.remove("pill-active","text-slate-100");
+      btn.classList.add("text-slate-400");
+    }
+  });
+}
+
+function renderRiskMetrics(data) {
+  const totals = data?.totals || {};
+  const baseSeries = totals.totalValue ? ensureChartSeries("30d", totals.totalValue) : [];
+  const metrics = computeSeriesMetrics(baseSeries);
+  el.metricAnnualized.textContent = isFinite(metrics.annualizedReturn) ? formatPercent(metrics.annualizedReturn*100) : "--";
+  el.metricVolatility.textContent = isFinite(metrics.volatility) ? formatPercent(metrics.volatility*100) : "--";
+  el.metricSharpe.textContent = isFinite(metrics.sharpe) ? metrics.sharpe.toFixed(2) : "--";
+  el.metricMaxDD.textContent = isFinite(metrics.maxDrawdown) ? formatPercent(metrics.maxDrawdown*100) : "--";
+  updateTrendClass(el.metricSharpe, metrics.sharpe);
+
+  const dailyVol = isFinite(metrics.volatility) ? metrics.volatility / Math.sqrt(252) : 0;
+  const oneDayVar = totals.totalValue * dailyVol * 1.65;
+  const fiveDayVar = totals.totalValue * dailyVol * Math.sqrt(5) * 1.65;
+  el.metricVaR1d.textContent = totals.totalValue ? `-${formatCurrency(Math.abs(oneDayVar))}` : "--";
+  el.metricVaR1dPct.textContent = totals.totalValue ? `-${formatPercent(dailyVol*1.65*100)}` : "--";
+  el.metricVaR5d.textContent = totals.totalValue ? `-${formatCurrency(Math.abs(fiveDayVar))}` : "--";
+
+  updateStressSummary(data, parseFloat(el.riskStressSelect.value || "-0.25"));
+
+  if (data.holdings.length < 2) {
+    el.riskCorrGrid.innerHTML = '<p class="text-[10px] text-slate-500">Add at least two assets to see simulated correlations.</p>';
+    return;
+  }
+  const top = data.holdings.slice(0,4);
+  const header = ['<div class="grid" style="grid-template-columns: repeat('+(top.length+1)+', minmax(0,1fr)); gap:4px; font-size:10px;">'];
+  header.push('<div></div>');
+  top.forEach(h => header.push(`<div class="text-center text-slate-400">${h.symbol}</div>`));
+  top.forEach(a => {
+    header.push(`<div class="text-slate-400">${a.symbol}</div>`);
+    top.forEach(b => {
+      const val = a.id === b.id ? 1 : pseudoCorrelation(a.id, b.id);
+      const pct = formatPercent(val*100);
+      header.push(`<div class="text-center font-mono ${val>=0?"text-emerald-300":"text-rose-300"}">${pct}</div>`);
+    });
+  });
+  header.push('</div>');
+  el.riskCorrGrid.innerHTML = header.join("");
+}
+
+function renderBenchmarksAndScenario(data) {
+  const totals = data?.totals || {};
+  const monthSeries = totals.totalValue ? ensureChartSeries("30d", totals.totalValue) : [];
+  let monthRet = 0;
+  if (monthSeries.length >= 2) {
+    const first = monthSeries[0].value;
+    const last = monthSeries[monthSeries.length-1].value;
+    if (first > 0) monthRet = (last - first) / first;
+  }
+  const quarterRet = monthRet * 3;
+  const yearRet = monthRet * 12;
+  el.perfMonthPortfolio.textContent = totals.totalValue ? formatPercent(monthRet*100) : "--";
+  el.perfQuarterPortfolio.textContent = totals.totalValue ? formatPercent(quarterRet*100) : "--";
+  el.perfYearPortfolio.textContent = totals.totalValue ? formatPercent(yearRet*100) : "--";
+
+  el.perfMonthSP.textContent = formatPercent(BENCHMARK_RETURNS.month.sp*100);
+  el.perfQuarterSP.textContent = formatPercent(BENCHMARK_RETURNS.quarter.sp*100);
+  el.perfYearSP.textContent = formatPercent(BENCHMARK_RETURNS.year.sp*100);
+  el.perfMonthNasdaq.textContent = formatPercent(BENCHMARK_RETURNS.month.nasdaq*100);
+  el.perfQuarterNasdaq.textContent = formatPercent(BENCHMARK_RETURNS.quarter.nasdaq*100);
+  el.perfYearNasdaq.textContent = formatPercent(BENCHMARK_RETURNS.year.nasdaq*100);
+  if (!BENCHMARK_RETURNS.hasLive) {
+    el.perfMonthSP.classList.add("text-slate-400");
+    el.perfMonthNasdaq.classList.add("text-slate-400");
+  }
+}
+
+function renderAlerts() {
+  el.alertsList.innerHTML = "";
+  if (!state.alerts.length) {
+    el.alertsEmpty.classList.remove("hidden");
+    return;
+  }
+  el.alertsEmpty.classList.add("hidden");
+  state.alerts.forEach(alert => {
+    const li = document.createElement("li");
+    li.className = "rounded-xl border border-slate-800 bg-slate-900/40 px-3 py-2 flex items-center justify-between gap-3";
+    li.innerHTML = `
+      <div>
+        <p class="font-semibold text-sm">${escapeHtml(alert.symbol || alert.coinId)}</p>
+        <p class="text-[11px] text-slate-500">${alert.direction === "above" ? "≥" : "≤"} ${formatCurrency(alert.target)}</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <button data-action="toggle" data-id="${escapeHtml(alert.id)}" class="text-[11px] ${alert.active?"text-emerald-400":"text-slate-500"}">${alert.active?"Active":"Paused"}</button>
+        <button data-action="delete" data-id="${escapeHtml(alert.id)}" class="text-[11px] text-slate-400 hover:text-rose-400">Remove</button>
+      </div>`;
+    el.alertsList.appendChild(li);
+  });
+}
+
+function renderNews(isFallback = false) {
+  const news = state.news || [];
+  const filter = state.newsFilter;
+  if (!news.length) {
+    el.newsEmpty.textContent = isFallback ? "News unavailable right now." : "Loading news…";
+    el.newsEmpty.classList.remove("hidden");
+    return;
+  }
+  const filtered = filter === "all" ? news : news.filter(item => item.coins.some(c => c === filter || c === filter.toUpperCase()));
+  el.newsStrip.innerHTML = "";
+  if (!filtered.length) {
+    el.newsEmpty.textContent = "No stories for that filter.";
+    el.newsEmpty.classList.remove("hidden");
+    return;
+  }
+  el.newsEmpty.classList.add("hidden");
+  filtered.forEach(item => {
+    const card = document.createElement("article");
+    card.className = "min-w-[240px] snap-start rounded-2xl border border-slate-800 bg-slate-900/40 p-3 flex flex-col gap-2";
+    const safeSource = escapeHtml(item.source || "");
+    const safeTitle = escapeHtml(item.title || "");
+    const safeSummary = escapeHtml(item.summary || "");
+    const safeUrl = escapeHtml(item.url || "#");
+    const tags = (item.coins || []).slice(0, 3)
+      .map(tag => `<span class="px-1.5 py-0.5 rounded-full bg-slate-800/70">${escapeHtml(tag)}</span>`)
+      .join("");
+    card.innerHTML = `
+      <div class="flex items-center justify-between text-[10px] text-slate-500">
+        <span>${safeSource}</span>
+        <span>${humanizeTimeAgo(item.publishedAt)}</span>
+      </div>
+      <a href="${safeUrl}" target="_blank" rel="noopener" class="text-sm font-semibold text-slate-100 line-clamp-3 hover:text-emerald-300">${safeTitle}</a>
+      <p class="text-[11px] text-slate-500 line-clamp-2">${safeSummary}</p>
+      <div class="flex flex-wrap gap-1 text-[10px] text-slate-400">${tags}</div>`;
+    el.newsStrip.appendChild(card);
+  });
+  startNewsAutoScroll();
+}
+
+/* ---------------------- Event handlers ---------------------- */
+function populateSelects(searchTerm = "") {
+  const term = searchTerm.trim().toLowerCase();
+  let list = COINS;
+  if (term) {
+    list = COINS.filter(c => c.name.toLowerCase().includes(term) || c.symbol.toLowerCase().includes(term));
+  }
+  const assetOptions = list.slice(0, 150);
+  const current = el.assetSelect.value;
+  el.assetSelect.innerHTML = assetOptions.map(c => `<option value="${c.id}">${c.symbol} · ${c.name}</option>`).join("");
+  if (!term && current && assetOptions.every(o => o.id !== current)) {
+    const existing = findCoinMeta(current);
+    if (existing) {
+      const opt = document.createElement("option");
+      opt.value = existing.id;
+      opt.textContent = `${existing.symbol} · ${existing.name}`;
+      el.assetSelect.prepend(opt);
+    }
+  }
+  if (!term && current) {
+    el.assetSelect.value = current;
+  }
+
+  if (el.assetSuggestions) {
+    const suggestionItems = (term ? list : COINS).slice(0, 20);
+    el.assetSuggestions.innerHTML = suggestionItems
+      .map(c => `<option value="${escapeHtml(c.symbol.toUpperCase())}">${escapeHtml(c.name)}</option>`)
+      .join("");
+  }
+
+  if (!el.assetSelect.value && assetOptions.length) {
+    el.assetSelect.value = assetOptions[0].id;
+  }
+
+  el.watchlistSelect.innerHTML = COINS.slice(0, 200).map(c => `<option value="${c.id}">${c.symbol} · ${c.name}</option>`).join("");
+  el.alertsAsset.innerHTML = COINS.map(c => `<option value="${c.id}">${c.symbol} · ${c.name}</option>`).join("");
+
+  const filterSet = new Set(["all", ...state.portfolio.map(h => h.id), ...state.watchlist]);
+  el.newsCoinFilter.innerHTML = Array.from(filterSet).map(id => {
+    if (id === "all") return '<option value="all">All</option>';
+    const meta = findCoinMeta(id) || { symbol: id.toUpperCase(), name: id };
+    return `<option value="${escapeHtml(id)}">${escapeHtml(meta.symbol)}</option>`;
+  }).join("");
+  el.newsCoinFilter.value = filterSet.has(state.newsFilter) ? state.newsFilter : "all";
+}
+
+function handleSaveCgApiKey(e) {
+  e.preventDefault();
+  const val = (el.cgApiKeyInput?.value || "").trim();
+  state.cgApiKey = val;
+  persistCgApiKey(val);
+  showToast(val ? "API key saved. Lower rate limits." : "Cleared API key.", "info");
+}
+
+function handleThemeToggle() {
+  const next = state.theme === "light" ? "dark" : "light";
+  applyTheme(next);
+}
+
+function handleTimeframeClick(e) {
+  const timeframe = e.currentTarget.dataset.timeframe;
+  if (!timeframe || timeframe === state.timeframe) return;
+  state.timeframe = timeframe;
+  renderChartSection(state.lastPortfolioData || calculatePortfolio(state.portfolio, state.priceData));
+}
+
+function handleChartTypeClick(e) {
+  const chartType = e.currentTarget.dataset.chartType;
+  if (!chartType || chartType === state.chartSettings.chartType) return;
+  state.chartSettings.chartType = chartType;
+  renderChartSection(state.lastPortfolioData || calculatePortfolio(state.portfolio, state.priceData));
+}
+
+function handleAssetForm(event) {
+  event.preventDefault();
+  const coinId = el.assetSelect.value;
+  const amount = parseFloat(el.assetAmount.value);
+  if (!coinId || !isFinite(amount) || amount <= 0) {
+    el.assetFormError.textContent = "Select an asset and enter a valid amount.";
+    el.assetFormError.classList.remove("hidden");
+    return;
+  }
+  el.assetFormError.classList.add("hidden");
+  const buyPriceInput = parseFloat(el.assetBuyPrice.value);
+  const entryCur = el.assetEntryCurrency.value || "usd";
+  const fx = state.fxRates[entryCur] || 1;
+  const buyPriceUsd = isFinite(buyPriceInput) && buyPriceInput > 0 ? buyPriceInput / fx : 0;
+  const meta = findCoinMeta(coinId) || { id: coinId, symbol: coinId.toUpperCase(), name: coinId };
+  const existingIndex = state.portfolio.findIndex(h => h.id === coinId);
+  if (editingCoinId && existingIndex >= 0 && editingCoinId !== coinId) {
+    showToast("Cannot change to a new asset while editing. Remove and add again.", "warn");
+    return;
+  }
+  if (editingCoinId) {
+    const idx = state.portfolio.findIndex(h => h.id === editingCoinId);
+    if (idx >= 0) {
+      state.portfolio[idx].amount = amount;
+      state.portfolio[idx].buyPrice = buyPriceUsd;
+    }
+    showToast("Position updated", "success");
+  } else if (existingIndex >= 0) {
+    const holding = state.portfolio[existingIndex];
+    const totalAmount = holding.amount + amount;
+    const newCost = (holding.buyPrice * holding.amount + (buyPriceUsd || holding.buyPrice) * amount) / totalAmount;
+    holding.amount = totalAmount;
+    holding.buyPrice = newCost || holding.buyPrice;
+    showToast("Position topped up", "success");
+  } else {
+    state.portfolio.push({
+      id: meta.id,
+      symbol: meta.symbol,
+      name: meta.name,
+      amount,
+      buyPrice: buyPriceUsd
+    });
+    showToast("Position added", "success");
+  }
+  persistPortfolio();
+  clearEditMode();
+  el.assetForm.reset();
+  renderAll();
+  refreshPrices({ light: true });
+}
+
+function clearEditMode() {
+  editingCoinId = null;
+  el.assetForm.reset();
+  el.assetSearch.value = "";
+  el.assetFormTitle.textContent = "Add position";
+  el.assetSubmitLabel.textContent = "Add position";
+  el.assetCancelEdit.classList.add("hidden");
+  populateSelects();
+}
+
+function handleHoldingsClick(e) {
+  const btn = e.target.closest("button[data-action]");
+  if (!btn) return;
+  const id = btn.dataset.id;
+  const action = btn.dataset.action;
+  if (!id) return;
+  const holding = state.portfolio.find(h => h.id === id);
+  if (!holding) return;
+  if (action === "edit") {
+    editingCoinId = id;
+    populateSelects();
+    el.assetSelect.value = id;
+    el.assetAmount.value = holding.amount;
+    el.assetBuyPrice.value = holding.buyPrice ? holding.buyPrice : "";
+    el.assetFormTitle.textContent = `Editing ${holding.symbol}`;
+    el.assetSubmitLabel.textContent = "Update position";
+    el.assetCancelEdit.classList.remove("hidden");
+    el.assetFormError.classList.add("hidden");
+  } else if (action === "delete") {
+    state.portfolio = state.portfolio.filter(h => h.id !== id);
+    persistPortfolio();
+    showToast(`${holding.symbol} removed`, "warn");
+    clearEditMode();
+    renderAll();
+  }
+}
+
+function handleWatchlistForm(e) {
+  e.preventDefault();
+  const id = el.watchlistSelect.value;
+  if (!id) return;
+  if (state.watchlist.includes(id)) {
+    showToast("Already on watchlist", "info");
+    return;
+  }
+  state.watchlist.push(id);
+  persistWatchlist();
+  renderWatchlist();
+  populateSelects(el.assetSearch.value);
+  showToast("Watchlist updated", "success");
+}
+
+function handleWatchlistClick(e) {
+  const btn = e.target.closest("button.watchlist-remove");
+  if (!btn) return;
+  const id = btn.dataset.id;
+  state.watchlist = state.watchlist.filter(item => item !== id);
+  persistWatchlist();
+  renderWatchlist();
+  populateSelects(el.assetSearch.value);
+}
+
+function handleWalletForm(e) {
+  e.preventDefault();
+  const chain = (el.walletChain.value || "ethereum").toLowerCase();
+  const address = (el.walletAddress.value || "").trim();
+  const label = (el.walletLabel.value || "").trim();
+  if (!address) {
+    showToast("Enter a wallet address to track", "error");
+    return;
+  }
+  const normalized = address.toLowerCase();
+  const exists = state.wallets.some(w => w.chain === chain && w.address.toLowerCase() === normalized);
+  if (exists) {
+    showToast("Already tracking that wallet", "info");
+    return;
+  }
+  state.wallets.push({
+    id: String(Date.now()),
+    chain,
+    address,
+    label,
+    addedAt: Date.now()
+  });
+  persistWallets();
+  renderWallets();
+  el.walletForm.reset();
+  showToast("Wallet added", "success");
+}
+
+function handleWalletListClick(e) {
+  const btn = e.target.closest("button.wallet-remove");
+  if (!btn) return;
+  const id = btn.dataset.id;
+  state.wallets = state.wallets.filter(w => w.id !== id);
+  persistWallets();
+  renderWallets();
+}
+
+function handleAlertsForm(e) {
+  e.preventDefault();
+  const coinId = el.alertsAsset.value;
+  const direction = el.alertsDirection.value;
+  const target = parseFloat(el.alertsPrice.value);
+  if (!coinId || !isFinite(target) || target <= 0) {
+    showToast("Enter a valid alert target", "error");
+    return;
+  }
+  const meta = findCoinMeta(coinId) || { symbol: coinId.toUpperCase(), name: coinId };
+  state.alerts.push({
+    id: String(Date.now()),
+    coinId,
+    symbol: meta.symbol,
+    name: meta.name,
+    direction,
+    target,
+    repeat: el.alertsRepeat.checked,
+    active: true,
+    lastTriggered: null
+  });
+  persistAlerts();
+  el.alertsForm.reset();
+  renderAlerts();
+  showToast("Alert added", "success");
+}
+
+function handleAlertsListClick(e) {
+  const btn = e.target.closest("button[data-action]");
+  if (!btn) return;
+  const id = btn.dataset.id;
+  const alert = state.alerts.find(a => a.id === id);
+  if (!alert) return;
+  if (btn.dataset.action === "toggle") {
+    alert.active = !alert.active;
+    showToast(`Alert ${alert.active?"resumed":"paused"}`, "info");
+  } else if (btn.dataset.action === "delete") {
+    state.alerts = state.alerts.filter(a => a.id !== id);
+    showToast("Alert deleted", "warn");
+  }
+  persistAlerts();
+  renderAlerts();
+}
+
+function handleNewsFilter(e) {
+  state.newsFilter = e.target.value;
+  renderNews();
+}
+
+function handleIndicatorToggle() {
+  state.chartSettings.indicators.bb = el.indicatorBB.checked;
+  state.chartSettings.indicators.rsi = el.indicatorRSI.checked;
+  state.chartSettings.indicators.macd = el.indicatorMACD.checked;
+  renderChartSection(state.lastPortfolioData || calculatePortfolio(state.portfolio, state.priceData));
+}
+
+function handleDrawToolChange(e) {
+  state.chartSettings.drawing.tool = e.target.value;
+  state.chartSettings.drawing.pending = null;
+  showToast(state.chartSettings.drawing.tool === "none" ? "Drawing disabled" : `Drawing ${state.chartSettings.drawing.tool}`, "info");
+}
+
+function handleDrawClear() {
+  state.chartSettings.drawing.trendlines = [];
+  state.chartSettings.drawing.fibs = [];
+  state.chartSettings.drawing.pending = null;
+  renderChartSection(state.lastPortfolioData || calculatePortfolio(state.portfolio, state.priceData));
+  showToast("Drawing overlays cleared", "success");
+}
+
+function handleChartClick(e) {
+  const tool = state.chartSettings.drawing.tool;
+  if (tool === "none" || !chartLayout) return;
+  const rect = el.chartCanvas.getBoundingClientRect();
+  const xNorm = clamp((e.clientX - rect.left - chartLayout.paddingX) / chartLayout.innerWidth);
+  const yNorm = clamp((e.clientY - rect.top - chartLayout.mainTop) / chartLayout.mainHeight);
+  if (!state.chartSettings.drawing.pending) {
+    state.chartSettings.drawing.pending = { type: tool, first: { xNorm, yNorm } };
+    showToast("First point locked. Click again to finish.", "info");
+    return;
+  }
+  const pending = state.chartSettings.drawing.pending;
+  if (pending.type !== tool) {
+    state.chartSettings.drawing.pending = { type: tool, first: { xNorm, yNorm } };
+    return;
+  }
+  if (tool === "trendline") {
+    state.chartSettings.drawing.trendlines.push({ p1: pending.first, p2: { xNorm, yNorm } });
+  } else if (tool === "fib") {
+    state.chartSettings.drawing.fibs.push({ top: pending.first, bottom: { xNorm, yNorm } });
+  }
+  state.chartSettings.drawing.pending = null;
+  renderChartSection(state.lastPortfolioData || calculatePortfolio(state.portfolio, state.priceData));
+}
+
+function handleScenarioSubmit(e) {
+  e.preventDefault();
+  const base = state.lastPortfolioData?.totals?.totalValue || 0;
+  if (!base) {
+    showToast("Add holdings to run scenarios.", "warn");
+    return;
+  }
+  const extra = parseFloat(el.scenarioAmount.value) || 0;
+  const move = parseFloat(el.scenarioMove.value) || 0;
+  const future = (base + extra) * (1 + move);
+  const pnl = future - base;
+  el.scenarioResultValue.textContent = formatCurrency(future);
+  el.scenarioResultPnl.textContent = formatCurrency(pnl);
+  updateTrendClass(el.scenarioResultPnl, pnl);
+  el.scenarioNote.textContent = `Shock ${formatPercent(move*100)} applied to current holdings plus extra capital.`;
+}
+
+function updateStressSummary(data, shock) {
+  if (!data || !data.totals || !data.totals.totalValue) {
+    el.riskStressSummary.textContent = "Add holdings to see crash impact.";
+    return;
+  }
+  const base = data.totals.totalValue;
+  const future = base * (1 + shock);
+  const delta = future - base;
+  el.riskStressLabel.textContent = formatPercent(shock*100);
+  el.riskStressSummary.textContent = `${formatCurrency(future)} (${delta>=0?"+":""}${formatCurrency(delta).replace("$","$")})`;
+  updateTrendClass(el.riskStressSummary, delta);
+}
+
+function checkAlerts() {
+  if (!state.alerts.length) return;
+  let triggered = false;
+  state.alerts.forEach(alert => {
+    if (!alert.active) return;
+    const price = getDisplayPrice(alert.coinId);
+    if (price == null) return;
+    if (alert.direction === "above" && price >= alert.target) {
+      triggered = true;
+      alert.lastTriggered = Date.now();
+      if (!alert.repeat) alert.active = false;
+      showToast(`${alert.symbol} hit ≥ ${formatCurrency(alert.target)}`, "success");
+      playAlertTone();
+    }
+    if (alert.direction === "below" && price <= alert.target) {
+      triggered = true;
+      alert.lastTriggered = Date.now();
+      if (!alert.repeat) alert.active = false;
+      showToast(`${alert.symbol} hit ≤ ${formatCurrency(alert.target)}`, "warn");
+      playAlertTone();
+    }
+  });
+  if (triggered) {
+    persistAlerts();
+    renderAlerts();
+  }
+}
+
+function showToast(message, type = "info") {
+  if (!el.toastContainer) return;
+  const toast = document.createElement("div");
+  const colors = {
+    success: "text-emerald-100 shadow-emerald-500/20",
+    error: "text-rose-100 shadow-rose-500/20",
+    warn: "text-amber-100 shadow-amber-500/20",
+    info: "text-slate-100 shadow-slate-500/20"
+  };
+  toast.className = `toast-modern text-sm shadow-lg pl-3 pr-2 ${colors[type] || colors.info}`;
+  toast.innerHTML = `<span class="mr-2">${type === "success" ? "✅" : type === "error" ? "⚠️" : type === "warn" ? "⚡" : "ℹ️"}</span>${message}`;
+  el.toastContainer.appendChild(toast);
+  setTimeout(() => {
+    toast.classList.add("opacity-0", "translate-y-2", "transition-all");
+    setTimeout(() => toast.remove(), 300);
+  }, 3500);
+}
+
+function unlockAudio() {
+    if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+}
+
+function ensureAudioContext() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+
+function playAlertTone() {
+  const ctx = ensureAudioContext();
+  if (!ctx) return;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.frequency.value = 880;
+  gain.gain.setValueAtTime(0.001, ctx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.2, ctx.currentTime + 0.01);
+  gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.4);
+  osc.connect(gain).connect(ctx.destination);
+  osc.start();
+  osc.stop(ctx.currentTime + 0.4);
+}
+
+function startNewsAutoScroll() {
+  if (state.newsAutoScrollTimer) clearInterval(state.newsAutoScrollTimer);
+  if (!el.newsStrip) return;
+  state.newsAutoScrollTimer = setInterval(() => {
+    if (!el.newsStrip) return;
+    if (el.newsStrip.scrollWidth <= el.newsStrip.clientWidth) return;
+    const atEnd = Math.abs(el.newsStrip.scrollWidth - el.newsStrip.clientWidth - el.newsStrip.scrollLeft) < 4;
+    if (atEnd) {
+      el.newsStrip.scrollTo({ left: 0, behavior: "smooth" });
+    } else {
+      el.newsStrip.scrollBy({ left: 240, behavior: "smooth" });
+    }
+  }, 6000);
+}
+
+function fetchNewsFallback() {
+  state.news = [
+    {
+      id: "fallback-1",
+      title: "Crypto markets consolidate ahead of macro data",
+      url: "https://news.example.com/market",
+      source: "Fallback",
+      summary: "Key majors hold support while traders watch liquidity across L2 ecosystems.",
+      publishedAt: Date.now() - 3600000,
+      coins: ["BTC","ETH","SOL"]
+    },
+    {
+      id: "fallback-2",
+      title: "Layer 2 growth sparks optimism",
+      url: "https://news.example.com/l2",
+      source: "Fallback",
+      summary: "Bridge flows into Base, Blast and Mantle continue to climb with healthy fees.",
+      publishedAt: Date.now() - 7200000,
+      coins: ["BASE","BLAST","MNT"]
+    }
+  ];
+  renderNews(true);
+}
+
+async function fetchNews() {
+  try {
+    const res = await fetch("https://min-api.cryptocompare.com/data/v2/news/?lang=EN");
+    if (!res.ok) throw new Error("News error " + res.status);
+    const json = await res.json();
+    if (!Array.isArray(json.Data)) throw new Error("Bad news payload");
+    state.news = json.Data.slice(0, 25).map(item => ({
+      id: item.id,
+      title: item.title,
+      url: item.url,
+      source: item.source_info?.name || item.source || "CryptoCompare",
+      summary: item.body?.slice(0, 140) || "",
+      publishedAt: (item.published_on || 0) * 1000,
+      coins: (item.tags || "BTC").split("|").map(tag => tag.trim().toUpperCase()).filter(Boolean)
+    }));
+    renderNews();
+  } catch (err) {
+    console.warn("News fetch failed", err);
+    showToast("News feed unavailable", "warn");
+    fetchNewsFallback();
+  }
+}
+
+/* ---------------------- All-in render ---------------------- */
+function renderAll() {
+  const data = state.lastPortfolioData || calculatePortfolio(state.portfolio, state.priceData);
+  state.lastPortfolioData = data;
+  if (data.totals.totalValue) {
+     ensureChartSeries("30d", data.totals.totalValue);
+  }
+  renderSummary(data);
+  renderHoldings(data);
+  renderAllocationMini(data);
+  renderWallets();
+  renderWatchlist();
+  renderChartSection(data);
+  renderRiskMetrics(data);
+  renderBenchmarksAndScenario(data);
+  renderAlerts();
+}
+
+/* ---------------------- Init ---------------------- */
+function init() {
+  const savedTheme = loadThemePreference();
+  applyTheme(savedTheme);
+
+  state.portfolio = loadPortfolio();
+  state.watchlist = loadWatchlist();
+  state.alerts    = loadAlerts();
+  state.wallets   = loadWallets();
+
+  // Load persistent FX rates
+  const savedFx = loadJson(STORAGE_KEYS.fx, null);
+  if (savedFx) state.fxRates = savedFx;
+
+  const savedCurrency = loadCurrencyPreference();
+  if (savedCurrency) {
+    state.currency = savedCurrency;
+    if (el.globalCurrencySelect) el.globalCurrencySelect.value = savedCurrency;
+  }
+
+  state.cgApiKey = loadCgApiKey();
+  if (el.cgApiKeyInput) el.cgApiKeyInput.value = state.cgApiKey;
+
+  populateSelects();
+  const data = calculatePortfolio(state.portfolio,state.priceData);
+  state.lastPortfolioData=data;
+  renderAll();
+
+  document.querySelectorAll(".timeframe-btn").forEach(btn=>{
+    btn.addEventListener("click", handleTimeframeClick);
+  });
+  document.querySelectorAll(".chart-type-btn").forEach(btn=>{
+    btn.addEventListener("click", handleChartTypeClick);
+  });
+  if (el.assetForm) el.assetForm.addEventListener("submit", handleAssetForm);
+  if (el.assetCancelEdit) el.assetCancelEdit.addEventListener("click", clearEditMode);
+  if (el.assetSearch) el.assetSearch.addEventListener("input", (e) => populateSelects(e.target.value));
+  if (el.holdingsBody) el.holdingsBody.addEventListener("click", handleHoldingsClick);
+  if (el.holdingsCards) el.holdingsCards.addEventListener("click", handleHoldingsClick);
+  if (el.watchlistForm) el.watchlistForm.addEventListener("submit", handleWatchlistForm);
+  if (el.watchlistList) el.watchlistList.addEventListener("click", handleWatchlistClick);
+  if (el.walletForm) el.walletForm.addEventListener("submit", handleWalletForm);
+  if (el.walletList) el.walletList.addEventListener("click", handleWalletListClick);
+  if (el.alertsForm) el.alertsForm.addEventListener("submit", handleAlertsForm);
+  if (el.alertsList) el.alertsList.addEventListener("click", handleAlertsListClick);
+  if (el.newsCoinFilter) el.newsCoinFilter.addEventListener("change", handleNewsFilter);
+  if (el.refreshBtn) el.refreshBtn.addEventListener("click", ()=>refreshPrices());
+  if (el.cgApiSaveBtn) el.cgApiSaveBtn.addEventListener("click", handleSaveCgApiKey);
+  if (el.themeToggle) el.themeToggle.addEventListener("click", handleThemeToggle);
+  if (el.globalCurrencySelect) el.globalCurrencySelect.addEventListener("change", (e) => {
+     const nextCurrency = (e.target.value || "usd").toLowerCase();
+     state.currency = CURRENCY_CONFIG[nextCurrency] ? nextCurrency : "usd";
+     persistCurrencyPreference();
+     renderAll();
+  });
+  if (el.indicatorBB) el.indicatorBB.addEventListener("change", handleIndicatorToggle);
+  if (el.indicatorRSI) el.indicatorRSI.addEventListener("change", handleIndicatorToggle);
+  if (el.indicatorMACD) el.indicatorMACD.addEventListener("change", handleIndicatorToggle);
+  if (el.drawToolSelect) el.drawToolSelect.addEventListener("change", handleDrawToolChange);
+  if (el.drawClear) el.drawClear.addEventListener("click", handleDrawClear);
+  if (el.chartCanvas) el.chartCanvas.addEventListener("click", handleChartClick);
+  if (el.scenarioForm) el.scenarioForm.addEventListener("submit", handleScenarioSubmit);
+  if (el.riskStressSelect) el.riskStressSelect.addEventListener("change", ()=>{
+    const data = state.lastPortfolioData || calculatePortfolio(state.portfolio,state.priceData);
+    updateStressSummary(data, parseFloat(el.riskStressSelect.value||"-0.25"));
+  });
+  
+  // Unlock audio context on user interaction
+  document.addEventListener('click', unlockAudio, { once: true });
+
+  refreshPrices();
+  fetchNews();
+  fetchSentiment();
+  fetchBenchmarks();
+  
+  if (el.btRunBtn) el.btRunBtn.addEventListener("click", runBacktest);
+}
+
+document.addEventListener("DOMContentLoaded", init);
+</script>
+</body>
+</html>
